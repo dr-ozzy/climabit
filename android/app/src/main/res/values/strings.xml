@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_descricao">Temperatura e céu de agora, com faixa de alerta</string>
+    <string name="widget_descricao_simples">Temperatura e ícone do céu, fundo translúcido</string>
+</resources>

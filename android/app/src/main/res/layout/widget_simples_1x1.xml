@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/raiz"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_fundo_simples"
+    android:clipToOutline="true">
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="center" android:gravity="center_horizontal"
+        android:orientation="vertical">
+        <ImageView android:id="@+id/icone" android:layout_width="34dp" android:layout_height="34dp" android:src="@drawable/ic_tempo_parcial_dia" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/temperatura" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="18sp" android:text="--°" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+    </LinearLayout>
+    <TextView android:id="@+id/alerta" android:layout_width="match_parent"
+        android:layout_height="5dp" android:layout_gravity="bottom" android:visibility="gone" />
+</FrameLayout>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Conexão sem criptografia só para o Alerta Rio, que não oferece HTTPS no XML de chuvas. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">websirene.rio.rj.gov.br</domain>
+        <domain includeSubdomains="false">alertario.rio.rj.gov.br</domain>
+    </domain-config>
+</network-security-config>

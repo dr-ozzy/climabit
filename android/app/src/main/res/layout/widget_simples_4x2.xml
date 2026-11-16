@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/raiz"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_fundo_simples"
+    android:clipToOutline="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="18dp" android:paddingEnd="18dp">
+        <ImageView android:id="@+id/icone" android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_tempo_parcial_dia" android:importantForAccessibility="no" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+            <TextView android:id="@+id/cidade" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp"  android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+            <TextView android:id="@+id/temperatura" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="40sp" android:text="--°" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+            <TextView android:id="@+id/ceu" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="14sp"  android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:gravity="end" android:orientation="vertical">
+            <TextView android:id="@+id/max_min" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="14sp"  android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+            <TextView android:id="@+id/chuva" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp"  android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+            <TextView android:id="@+id/hora" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#B3FFFFFF" android:textSize="11sp" android:layout_marginTop="6dp" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/alerta" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_gravity="bottom"
+        android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="3dp"
+        android:paddingBottom="4dp" android:visibility="gone">
+        <TextView android:id="@+id/alerta_texto" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textSize="11sp"
+            android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+    </LinearLayout>
+</FrameLayout>
