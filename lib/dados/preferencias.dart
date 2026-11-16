@@ -18,6 +18,7 @@ class Preferencias {
   static const _avisos = 'avisos_ligados';
   static const _cidadeAvisos = 'cidade_avisos';
   static const _intervalo = 'avisos_intervalo_min';
+  static const _avisoChuva = 'aviso_chuva';
 
   List<Cidade> get cidadesSalvas {
     final s = _p.getString(_salvas);
@@ -41,6 +42,13 @@ class Preferencias {
 
   bool get avisosLigados => _p.getBool(_avisos) ?? false;
   Future<void> definirAvisos(bool v) => _p.setBool(_avisos, v);
+
+  /// Avisar quando a chuva (garoa, neve, trovoada) for começar nas próximas 2 horas.
+  bool get avisoChuva => _p.getBool(_avisoChuva) ?? false;
+  Future<void> definirAvisoChuva(bool v) => _p.setBool(_avisoChuva, v);
+
+  /// Alguma conferência em segundo plano ligada (alertas ou chuva).
+  bool get algumAviso => avisosLigados || avisoChuva;
 
   Cidade get cidadeDosAvisos {
     final s = _p.getString(_cidadeAvisos);

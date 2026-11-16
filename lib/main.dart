@@ -28,8 +28,9 @@ Future<void> main() async {
   await EstacaoMare.carregar();
   try {
     await Notificacoes.iniciar();
-  } catch (_) {
+  } catch (e) {
     // Sem notificações o restante do app continua funcionando.
+    debugPrint('ClimaBit: falha ao iniciar notificações: $e');
   }
   final repo = Repositorio(cidade: prefs.cidadeAtual)
     ..aoObterAlertas = (cidade, alertas) {

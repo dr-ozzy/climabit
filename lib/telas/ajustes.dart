@@ -22,7 +22,9 @@ class TelaAjustes extends StatefulWidget {
 class _TelaAjustesState extends State<TelaAjustes> {
   Preferencias get _p => widget.prefs;
 
-  Future<void> _ligarAvisos(bool ligar) async {
+  /// Liga ou desliga um dos avisos (alertas oficiais ou chuva chegando). A conferência em
+  /// segundo plano fica agendada enquanto pelo menos um estiver ligado.
+  Future<void> _ligar(bool ligar, Future<void> Function(bool) gravar) async {
     if (ligar) {
       final ok = await Notificacoes.pedirPermissao();
       if (!ok) {
@@ -31,24 +33,28 @@ class _TelaAjustesState extends State<TelaAjustes> {
             content: Text('Sem a permissão de notificação o app não consegue avisar.')));
         return;
       }
-      // A tela muda logo depois de gravar a escolha; o agendamento e a consulta ao INMET
-      // (que pode levar segundos) continuam em seguida, sem prender a tela.
-      await _p.definirAvisos(true);
-      if (mounted) setState(() {});
+    }
+    // A tela muda logo depois de gravar a escolha; o agendamento e a consulta (que pode
+    // levar segundos) continuam em seguida, sem prender a tela.
+    await gravar(ligar);
+    if (mounted) setState(() {});
+    if (_p.algumAviso) {
       await Notificacoes.agendar(_p.intervaloMin);
-      // Avisa já os alertas em vigor (também confirma que as notificações funcionam).
-      await Notificacoes.verificarAgora();
+      // Confere já (alertas em vigor, chuva chegando); também confirma que funciona.
+      if (ligar) await Notificacoes.verificarAgora();
     } else {
-      await _p.definirAvisos(false);
-      if (mounted) setState(() {});
       await Notificacoes.cancelar();
     }
   }
 
+  Future<void> _ligarAvisos(bool ligar) => _ligar(ligar, _p.definirAvisos);
+
+  Future<void> _ligarChuva(bool ligar) => _ligar(ligar, _p.definirAvisoChuva);
+
   Future<void> _mudarIntervalo(int min) async {
     await _p.definirIntervalo(min);
     if (mounted) setState(() {});
-    if (_p.avisosLigados) await Notificacoes.agendar(min);
+    if (_p.algumAviso) await Notificacoes.agendar(min);
   }
 
   Future<void> _escolherCidade() async {
@@ -84,7 +90,8 @@ class _TelaAjustesState extends State<TelaAjustes> {
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    final ligado = _p.avisosLigados;
+    // Cidade e intervalo valem para os dois avisos (alertas e chuva chegando).
+    final ligado = _p.algumAviso;
     Widget titulo(String t) => Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
           child: Text(t, style: tema.textTheme.titleSmall?.copyWith(color: tema.colorScheme.primary)),
@@ -102,12 +109,19 @@ class _TelaAjustesState extends State<TelaAjustes> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: [
-              titulo('Avisos de alertas oficiais'),
+              titulo('Avisos'),
               SwitchListTile(
                 title: const Text('Notificar alertas do INMET'),
                 subtitle: const Text('Confere em segundo plano e avisa quando sai um alerta novo.'),
-                value: ligado,
+                value: _p.avisosLigados,
                 onChanged: _ligarAvisos,
+              ),
+              SwitchListTile(
+                title: const Text('Avisar quando for começar a chover'),
+                subtitle: const Text('Chuva, garoa, neve ou trovoada nas próximas 2 horas. '
+                    'Estimativa por modelo (Open-Meteo): o horário pode variar.'),
+                value: _p.avisoChuva,
+                onChanged: _ligarChuva,
               ),
               ListTile(
                 enabled: ligado,
@@ -129,6 +143,8 @@ class _TelaAjustesState extends State<TelaAjustes> {
                       ButtonSegment(value: e.key, label: Text(e.value)),
                   ],
                   selected: {_p.intervaloMin},
+                  // Sem a marca ✓: a cor já mostra a escolha e o texto cabe numa linha.
+                  showSelectedIcon: false,
                   onSelectionChanged: ligado ? (s) => _mudarIntervalo(s.first) : null,
                 ),
               ),
@@ -145,8 +161,8 @@ class _TelaAjustesState extends State<TelaAjustes> {
               paragrafo('• O app só se conecta a órgãos oficiais: INMET, CPTEC/INPE, Cemaden, Alerta Rio, '
                   'Defesa Civil de Niterói, UNIFEI (em Itajubá) e o serviço de dados de aeroportos da NOAA '
                   '(governo dos EUA, aviationweather.gov). Consulta também o Open-Meteo '
-                  '(open-meteo.com, serviço de código aberto) para a chuva de hora em hora e '
-                  'quando falta um dado oficial.'),
+                  '(open-meteo.com, serviço de código aberto) para a chuva de hora em hora, '
+                  'o aviso de chuva chegando e quando falta um dado oficial.'),
               paragrafo('• A sua localização não sai do celular: o app descobre o município '
                   'com a lista do IBGE guardada nele e envia às fontes só o código ou o ponto da sede '
                   'do município, que são os mesmos para todos os moradores.'),

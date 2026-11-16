@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recursos usados só pelo nome (pelo app em Dart ou montado em Kotlin): a compilação
+     final não pode apagá-los. Sem o ícone da notificação, as notificações e o agendamento
+     em segundo plano não iniciavam. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notificacao,@drawable/ic_tempo_*,@drawable/ceu_*" />

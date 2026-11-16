@@ -917,3 +917,48 @@ List<Pluviometro> lerPluviometrosAlertaRio(String corpo) {
   }
   return r;
 }
+
+
+// ---------------------------------------------------------------------------
+// Chuva chegando: previsão de 15 em 15 minutos (Open-Meteo, estimativa por modelo)
+// ---------------------------------------------------------------------------
+
+/// Um intervalo de 15 minutos da previsão.
+class Faixa15 {
+  const Faixa15({required this.inicio, this.milimetros, this.neve, this.codigo});
+  final DateTime inicio;
+
+  /// Precipitação prevista no intervalo (mm em 15 minutos).
+  final double? milimetros;
+
+  /// Neve prevista no intervalo (cm).
+  final double? neve;
+
+  /// Código de tempo da OMS (WMO).
+  final int? codigo;
+}
+
+/// `https://api.open-meteo.com/v1/forecast?...&minutely_15=precipitation,snowfall,weather_code&timezone=GMT`
+List<Faixa15> lerChuva15min(String corpo) {
+  final j = jsonDecode(corpo);
+  if (j is! Map<String, dynamic>) return [];
+  final m = j['minutely_15'];
+  if (m is! Map<String, dynamic> || m['time'] is! List) return [];
+  List<dynamic> col(String k) => m[k] is List ? m[k] as List : const [];
+  final horas = m['time'] as List;
+  final mm = col('precipitation');
+  final neve = col('snowfall');
+  final cod = col('weather_code');
+  final r = <Faixa15>[];
+  for (var i = 0; i < horas.length; i++) {
+    final t = DateTime.tryParse('${horas[i]}Z');
+    if (t == null) continue;
+    r.add(Faixa15(
+      inicio: t.toLocal(),
+      milimetros: i < mm.length ? _num(mm[i])?.toDouble() : null,
+      neve: i < neve.length ? _num(neve[i])?.toDouble() : null,
+      codigo: i < cod.length ? _int(cod[i]) : null,
+    ));
+  }
+  return r;
+}

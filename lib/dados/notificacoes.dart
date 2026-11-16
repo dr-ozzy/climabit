@@ -15,6 +15,7 @@ import 'widget_tela.dart';
 
 const _tarefa = 'verificar_alertas';
 const _vistos = 'alertas_vistos';
+const _chuvaAvisada = 'chuva_avisada';
 
 final _plugin = FlutterLocalNotificationsPlugin();
 
@@ -27,7 +28,19 @@ void despachante() {
       if (tarefa == tarefaWidget) {
         await atualizarWidgetsEmSegundoPlano();
       } else {
-        await verificarAlertas();
+        // Alertas e chuva chegando: uma falha numa não impede a outra.
+        var ok = true;
+        try {
+          await verificarAlertas();
+        } catch (_) {
+          ok = false;
+        }
+        try {
+          await verificarChuva();
+        } catch (_) {
+          ok = false;
+        }
+        return ok;
       }
       return true;
     } catch (_) {
@@ -133,3 +146,127 @@ Future<void> verificarAlertas() async {
     ...novos.map((a) => a.id),
   }.toList());
 }
+
+
+// ---------------------------------------------------------------------------
+// Chuva chegando (estimativa de 15 em 15 minutos do Open-Meteo)
+// ---------------------------------------------------------------------------
+
+/// Precipitação mínima em 15 minutos para contar como chuva (0,2 mm ≈ 0,8 mm/h).
+const limiarChuva15 = 0.2;
+
+/// O que avisar: quando começa, o tipo e a intensidade.
+class AvisoChuva {
+  const AvisoChuva({
+    required this.inicio,
+    required this.verbo,
+    required this.descricao,
+    required this.agora,
+  });
+
+  /// Início do primeiro intervalo de 15 minutos com chuva.
+  final DateTime inicio;
+
+  /// "chover", "garoar", "nevar", "chover com trovoada".
+  final String verbo;
+
+  /// "chuva fraca", "garoa", "neve moderada"...
+  final String descricao;
+
+  /// A chuva já está no intervalo atual.
+  final bool agora;
+
+  String titulo(String cidade) => agora
+      ? 'Começou a $verbo em $cidade'
+      : 'Deve começar a $verbo por volta das ${hora(inicio)}';
+}
+
+/// Primeiro intervalo com chuva nas próximas 2 horas, ou nulo.
+AvisoChuva? avisoDeChuva(List<Faixa15> faixas, DateTime agora) {
+  final limite = agora.add(const Duration(hours: 2));
+  for (final f in faixas) {
+    final fim = f.inicio.add(const Duration(minutes: 15));
+    if (!fim.isAfter(agora) || !f.inicio.isBefore(limite)) continue;
+    final mm = f.milimetros ?? 0;
+    if (mm < limiarChuva15) continue;
+    final c = f.codigo ?? 0;
+    final porHora = mm * 4;
+    final intensidade = porHora < 2.5 ? 'fraca' : (porHora < 10 ? 'moderada' : 'forte');
+    final (String verbo, String descricao) = switch (c) {
+      >= 95 && <= 99 => ('chover com trovoada', 'chuva $intensidade com trovoada'),
+      (>= 71 && <= 77) || 85 || 86 => ('nevar', 'neve $intensidade'),
+      >= 51 && <= 57 => ('garoar', 'garoa'),
+      _ when (f.neve ?? 0) > 0 => ('nevar', 'neve $intensidade'),
+      _ => ('chover', 'chuva $intensidade'),
+    };
+    return AvisoChuva(
+      inicio: f.inicio,
+      verbo: verbo,
+      descricao: descricao,
+      agora: !f.inicio.isAfter(agora),
+    );
+  }
+  return null;
+}
+
+/// O mesmo episódio de chuva já avisado (guardado = "código da cidade|início em ms")?
+/// Mesmo episódio: início previsto até 90 min do avisado, ou chuva em curso depois do
+/// início avisado.
+bool mesmoEpisodioDeChuva(AvisoChuva a, String? guardado, int cidade, DateTime agora) {
+  if (guardado == null) return false;
+  final partes = guardado.split('|');
+  if (partes.length != 2 || partes[0] != '$cidade') return false;
+  final ms = int.tryParse(partes[1]);
+  if (ms == null) return false;
+  final anterior = DateTime.fromMillisecondsSinceEpoch(ms);
+  if (a.inicio.difference(anterior).abs() <= const Duration(minutes: 90)) return true;
+  return a.agora && !anterior.isAfter(agora);
+}
+
+/// Consulta a previsão de 15 em 15 minutos da cidade dos avisos e avisa uma vez por
+/// episódio quando a chuva for começar nas próximas 2 horas.
+Future<void> verificarChuva() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await Preferencias.carregar();
+  if (!prefs.avisoChuva) return;
+  final cidade = prefs.cidadeDosAvisos;
+  if (cidade.latitude == null || cidade.longitude == null) return;
+  final r = await http.get(Uri.https('api.open-meteo.com', '/v1/forecast', {
+    'latitude': cidade.latitude!.toStringAsFixed(2),
+    'longitude': cidade.longitude!.toStringAsFixed(2),
+    'minutely_15': 'precipitation,snowfall,weather_code',
+    'forecast_minutely_15': '10',
+    'timezone': 'GMT',
+  })).timeout(const Duration(seconds: 30));
+  if (r.statusCode != 200) throw Exception('Open-Meteo ${r.statusCode}');
+
+  final agora = DateTime.now();
+  final aviso = avisoDeChuva(lerChuva15min(r.body), agora);
+  final sp = await SharedPreferences.getInstance();
+  if (aviso == null) {
+    // Sem chuva nas próximas 2 horas: o próximo episódio pode ser avisado.
+    await sp.remove(_chuvaAvisada);
+    return;
+  }
+  if (mesmoEpisodioDeChuva(aviso, sp.getString(_chuvaAvisada), cidade.geocode, agora)) return;
+
+  await _iniciarPlugin();
+  await _plugin.show(
+    id: 900001,
+    title: aviso.titulo(cidade.nome),
+    body: '${aviso.agora ? _maiuscula(aviso.descricao) : '${cidade.nome}: ${aviso.descricao}'}. '
+        'Estimativa por modelo (Open-Meteo); o horário pode variar uns 15 a 30 minutos.',
+    notificationDetails: const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'chuva_chegando',
+        'Chuva chegando',
+        channelDescription: 'Aviso quando a chuva, garoa ou neve for começar nas próximas 2 horas',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    ),
+  );
+  await sp.setString(_chuvaAvisada, '${cidade.geocode}|${aviso.inicio.millisecondsSinceEpoch}');
+}
+
+String _maiuscula(String t) => t.isEmpty ? t : '${t[0].toUpperCase()}${t.substring(1)}';
