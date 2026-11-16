@@ -31,21 +31,24 @@ class _TelaAjustesState extends State<TelaAjustes> {
             content: Text('Sem a permissão de notificação o app não consegue avisar.')));
         return;
       }
+      // A tela muda logo depois de gravar a escolha; o agendamento e a consulta ao INMET
+      // (que pode levar segundos) continuam em seguida, sem prender a tela.
       await _p.definirAvisos(true);
+      if (mounted) setState(() {});
       await Notificacoes.agendar(_p.intervaloMin);
       // Avisa já os alertas em vigor (também confirma que as notificações funcionam).
       await Notificacoes.verificarAgora();
     } else {
       await _p.definirAvisos(false);
+      if (mounted) setState(() {});
       await Notificacoes.cancelar();
     }
-    if (mounted) setState(() {});
   }
 
   Future<void> _mudarIntervalo(int min) async {
     await _p.definirIntervalo(min);
-    if (_p.avisosLigados) await Notificacoes.agendar(min);
     if (mounted) setState(() {});
+    if (_p.avisosLigados) await Notificacoes.agendar(min);
   }
 
   Future<void> _escolherCidade() async {
@@ -74,8 +77,8 @@ class _TelaAjustesState extends State<TelaAjustes> {
     );
     if (c == null) return;
     await _p.definirCidadeDosAvisos(c);
-    await Notificacoes.verificarAgora();
     if (mounted) setState(() {});
+    await Notificacoes.verificarAgora();
   }
 
   @override
