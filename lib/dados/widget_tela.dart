@@ -6,11 +6,12 @@ import '../telas/ceu.dart';
 import '../telas/componentes.dart' show gravidadeAlerta;
 import '../util/formatos.dart';
 import 'astro.dart';
+import 'fontes.dart';
 import 'mare.dart';
 import 'preferencias.dart';
 import 'repositorio.dart';
 
-/// Nomes das classes Android dos três widgets da tela inicial do celular.
+/// Nomes das classes Android dos widgets da tela inicial do celular.
 const _provedores = [
   'app.climabit.WidgetClima1x1',
   'app.climabit.WidgetClima2x2',
@@ -18,6 +19,8 @@ const _provedores = [
   'app.climabit.WidgetSimples1x1',
   'app.climabit.WidgetSimples2x2',
   'app.climabit.WidgetSimples4x2',
+  'app.climabit.WidgetClima4x1',
+  'app.climabit.WidgetSimples4x1',
 ];
 
 const tarefaWidget = 'atualizar_widget';
@@ -35,7 +38,15 @@ class DadosWidget {
     required this.icone,
     required this.nivelAlerta,
     required this.textoAlerta,
+    this.sensacao = '',
+    this.horas = const [],
   });
+
+  /// "sensação 26°" (barra 4 × 1).
+  final String sensacao;
+
+  /// Até 3 horas do dia para a barra 4 × 1: ("15h", "26°", "sens. 28°").
+  final List<(String, String, String)> horas;
 
   final String temperatura;
   final String ceu;
@@ -66,6 +77,12 @@ class DadosWidget {
         'icone': icone,
         'nivel_alerta': nivelAlerta,
         'texto_alerta': textoAlerta,
+        'sensacao': sensacao,
+        for (var i = 0; i < 3; i++) ...{
+          'h${i + 1}_hora': i < horas.length ? horas[i].$1 : '',
+          'h${i + 1}_temp': i < horas.length ? horas[i].$2 : '',
+          'h${i + 1}_sens': i < horas.length ? horas[i].$3 : '',
+        },
       };
 }
 
@@ -92,10 +109,11 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
       (estado == EstadoCeu.limpo || estado == EstadoCeu.parcial);
   final momento = noite ? 'noite' : (tarde ? 'tarde' : 'dia');
   final ventoKmh = repo.ventoAeroporto?.ventoKmh ?? m.ventoKmh ?? repo.ventoEstimado?.ventoKmh;
+  final sensacaoAgora = m.sensacao ?? sensacaoTermica(m.temperatura, m.umidade, ventoKmh);
   final paisagem = escolherPaisagem(
     estado: estado,
     temperatura: m.temperatura,
-    sensacao: m.sensacao ?? sensacaoTermica(m.temperatura, m.umidade, ventoKmh),
+    sensacao: sensacaoAgora,
     chuvaUltimaHora: m.chuva1h,
     resumo: resumoDoPeriodo(hoje, agora),
   );
@@ -144,8 +162,23 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
     },
     nivelAlerta: nivel,
     textoAlerta: texto,
+    sensacao: sensacaoAgora == null ? '' : 'sensação ${sensacaoAgora.round()}°',
+    horas: [
+      for (final h in horasDoDia(repo.chuvaHoraria, agora))
+        (
+          '${h.hora.hour}h',
+          '${h.temperatura!.round()}°',
+          'sens. ${(h.sensacao ?? h.temperatura!).round()}°',
+        ),
+    ],
   );
 }
+
+/// 3 horas à frente, de 3 em 3 horas (15h, 18h, 21h...), com temperatura prevista.
+List<HoraChuva> horasDoDia(List<HoraChuva> horas, DateTime agora) => horas
+    .where((h) => h.temperatura != null && h.hora.isAfter(agora) && h.hora.hour % 3 == 0)
+    .take(3)
+    .toList();
 
 /// Grava os dados e redesenha os widgets (com o app aberto ou em segundo plano).
 Future<void> atualizarWidgets(Repositorio repo) async {

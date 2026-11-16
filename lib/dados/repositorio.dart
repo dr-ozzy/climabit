@@ -582,7 +582,8 @@ Uri _enderecoChuvaHoraria(double lat, double lon) =>
     Uri.https('api.open-meteo.com', '/v1/forecast', {
       'latitude': lat.toStringAsFixed(2),
       'longitude': lon.toStringAsFixed(2),
-      'hourly': 'temperature_2m,precipitation_probability,precipitation,weather_code,uv_index,is_day',
+      'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,'
+          'weather_code,uv_index,is_day',
       'forecast_hours': '24',
       'timezone': 'GMT',
     });

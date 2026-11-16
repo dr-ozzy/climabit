@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tempo_oficial/dados/fontes.dart';
+import 'package:tempo_oficial/dados/widget_tela.dart';
 import 'package:tempo_oficial/telas/ceu.dart';
 import 'package:tempo_oficial/util/formatos.dart';
 
@@ -39,6 +40,15 @@ void main() {
     expect(orvalhoCalculado(30, 50)!.round(), 18);
     expect(visibilidadeMetarKm('10+')!.round(), 16);
     expect(visibilidadeMetarKm(6)!.round(), 10);
+  });
+
+  test('barra 4 x 1: 3 horas de 3 em 3, depois de agora', () {
+    final agora = DateTime(2026, 11, 16, 13, 40);
+    final horas = [
+      for (var i = 0; i < 24; i++)
+        HoraChuva(hora: DateTime(2026, 11, 16, 13).add(Duration(hours: i)), temperatura: 20.0 + i),
+    ];
+    expect(horasDoDia(horas, agora).map((h) => h.hora.hour).toList(), [15, 18, 21]);
   });
 
   test('trenó só de 23 a 25 de dezembro', () {

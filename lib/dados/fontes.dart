@@ -632,6 +632,7 @@ class HoraChuva {
     this.milimetros,
     this.codigo,
     this.temperatura,
+    this.sensacao,
     this.uv,
     this.dia,
   });
@@ -639,6 +640,9 @@ class HoraChuva {
 
   /// Temperatura prevista (°C).
   final double? temperatura;
+
+  /// Sensação térmica prevista (°C).
+  final double? sensacao;
 
   /// Índice ultravioleta previsto.
   final double? uv;
@@ -664,6 +668,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
   final mm = col('precipitation');
   final cod = col('weather_code');
   final temp = col('temperature_2m');
+  final aparente = col('apparent_temperature');
   final uv = col('uv_index');
   final dia = col('is_day');
   final r = <HoraChuva>[];
@@ -676,6 +681,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
       milimetros: i < mm.length ? _num(mm[i]) : null,
       codigo: i < cod.length ? _int(cod[i]) : null,
       temperatura: i < temp.length ? _num(temp[i])?.toDouble() : null,
+      sensacao: i < aparente.length ? _num(aparente[i])?.toDouble() : null,
       uv: i < uv.length ? _num(uv[i])?.toDouble() : null,
       dia: i < dia.length && dia[i] is num ? dia[i] == 1 : null,
     ));

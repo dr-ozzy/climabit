@@ -34,6 +34,16 @@ private fun preencher(
             R.id.chuva to dados.getString("chuva", ""),
             R.id.cidade to dados.getString("cidade", ""),
             R.id.hora to dados.getString("hora", ""),
+            R.id.sensacao to dados.getString("sensacao", ""),
+            R.id.h1_hora to dados.getString("h1_hora", ""),
+            R.id.h1_temp to dados.getString("h1_temp", ""),
+            R.id.h1_sens to dados.getString("h1_sens", ""),
+            R.id.h2_hora to dados.getString("h2_hora", ""),
+            R.id.h2_temp to dados.getString("h2_temp", ""),
+            R.id.h2_sens to dados.getString("h2_sens", ""),
+            R.id.h3_hora to dados.getString("h3_hora", ""),
+            R.id.h3_temp to dados.getString("h3_temp", ""),
+            R.id.h3_sens to dados.getString("h3_sens", ""),
         )
         for ((campo, texto) in textos) {
             if (campo in campos) textoOpcional(v, campo, texto)
@@ -121,6 +131,30 @@ class WidgetClima4x2 : HomeWidgetProvider() {
         widgetData: SharedPreferences,
     ) = preencher(context, appWidgetManager, appWidgetIds, widgetData, R.layout.widget_clima_4x2, "l",
         setOf(R.id.ceu, R.id.max_min, R.id.chuva, R.id.cidade, R.id.hora, R.id.alerta_texto))
+}
+
+/** Campos da barra 4 × 1: agora e 3 horas do dia, cada uma com temperatura e sensação. */
+private val camposBarra = setOf(
+    R.id.cidade, R.id.sensacao,
+    R.id.h1_hora, R.id.h1_temp, R.id.h1_sens,
+    R.id.h2_hora, R.id.h2_temp, R.id.h2_sens,
+    R.id.h3_hora, R.id.h3_temp, R.id.h3_sens,
+)
+
+class WidgetClima4x1 : HomeWidgetProvider() {
+    override fun onUpdate(
+        context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
+        widgetData: SharedPreferences,
+    ) = preencher(context, appWidgetManager, appWidgetIds, widgetData, R.layout.widget_clima_4x1, "l",
+        camposBarra)
+}
+
+class WidgetSimples4x1 : HomeWidgetProvider() {
+    override fun onUpdate(
+        context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
+        widgetData: SharedPreferences,
+    ) = preencher(context, appWidgetManager, appWidgetIds, widgetData,
+        R.layout.widget_simples_4x1, null, camposBarra)
 }
 
 class WidgetSimples1x1 : HomeWidgetProvider() {

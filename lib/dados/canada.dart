@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../util/formatos.dart';
 import 'fontes.dart';
 
 /// Dados do serviço meteorológico oficial do Canadá (Environment and Climate Change Canada,
@@ -191,9 +192,14 @@ DadosCanada lerCanada(String corpo) {
       final t = _hora(h['timestamp']);
       if (t == null) continue;
       final icone = _numero(h['iconCode'])?.round();
+      final tempHora = _numero(h['temperature']);
+      final ventoHora = h['wind'] is Map ? _numero((h['wind'] as Map)['speed']) : null;
       horas.add(HoraChuva(
         hora: t,
-        temperatura: _numero(h['temperature']),
+        temperatura: tempHora,
+        // Índice oficial (humidex ou frio do vento) ou, sem ele, frio do vento calculado.
+        sensacao: _numero(h['humidex']) ?? _numero(h['windChill']) ??
+            sensacaoTermica(tempHora, null, ventoHora),
         probabilidade: _numero(h['lop'])?.round(),
         codigo: codigoWmoCanada(icone),
         dia: icone == null ? null : icone < 30,

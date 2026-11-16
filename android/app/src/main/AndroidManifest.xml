@@ -87,6 +87,22 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/widget_simples_4x2" />
         </receiver>
+        <receiver android:name=".WidgetClima4x1" android:exported="false"
+            android:label="ClimaBit barra (4×1)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_clima_4x1" />
+        </receiver>
+        <receiver android:name=".WidgetSimples4x1" android:exported="false"
+            android:label="ClimaBit simples barra (4×1)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_simples_4x1" />
+        </receiver>
         <!-- Entrega o APK da atualização ao instalador do Android. -->
         <provider
             android:name=".ArquivosAtualizacao"
