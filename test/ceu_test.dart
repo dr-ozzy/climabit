@@ -27,13 +27,26 @@ void main() {
     expect(avaliarUv(2).$1, 'Baixo');
   });
 
+  test('trenó só de 23 a 25 de dezembro', () {
+    expect(ehNatal(DateTime(2026, 12, 22)), isFalse);
+    expect(ehNatal(DateTime(2026, 12, 23)), isTrue);
+    expect(ehNatal(DateTime(2026, 12, 25, 23, 59)), isTrue);
+    expect(ehNatal(DateTime(2026, 12, 26)), isFalse);
+    expect(ehNatal(DateTime(2026, 11, 24)), isFalse);
+  });
+
   test('cenário do tipo de dia', () {
     Paisagem p({EstadoCeu e = EstadoCeu.parcial, double t = 25, double? s, double chuva = 0,
             String r = ''}) =>
         escolherPaisagem(
             estado: e, temperatura: t, sensacao: s, chuvaUltimaHora: chuva, resumo: r);
-    expect(p(t: 8), Paisagem.neve);
-    expect(p(r: 'Possibilidade de geada'), Paisagem.neve);
+    // Neve só quando está nevando de fato.
+    expect(p(t: -5, e: EstadoCeu.limpo), Paisagem.campo);
+    expect(p(t: 8), isNot(Paisagem.neve));
+    expect(p(r: 'Possibilidade de geada'), isNot(Paisagem.neve));
+    expect(p(r: 'Chance de neve'), isNot(Paisagem.neve));
+    expect(p(t: -2, r: 'Neve fraca'), Paisagem.neve);
+    expect(p(t: 1, e: EstadoCeu.chuva, r: 'Chuva e neve'), Paisagem.neve);
     expect(p(t: 33, s: 38), Paisagem.vulcao);
     expect(p(e: EstadoCeu.chuva, chuva: 12), Paisagem.cachoeiras);
     expect(p(e: EstadoCeu.trovoada, chuva: 1), Paisagem.cachoeiras);

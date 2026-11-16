@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Versão deste app. Mude junto com `version` no pubspec.yaml.
-const versaoApp = '1.18.0';
+const versaoApp = '1.18.1';
 
 /// Repositório público onde cada versão é publicada (GitHub Releases).
 const repositorioApp = 'dr-ozzy/climabit';

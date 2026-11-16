@@ -56,11 +56,23 @@ enum Paisagem {
   /// Chuva forte: cidade de pedra com cachoeiras.
   cachoeiras,
 
-  /// Frio, neve ou geada: aldeia nas montanhas nevadas.
+  /// Nevando agora: aldeia nas montanhas nevadas.
   neve,
 }
 
-/// Escolhe o cenário. Ordem: frio, calor, chuva forte, dia bom; senão, morros.
+/// true quando o texto do tempo diz que está nevando ("Neve fraca", "Chuva e neve").
+/// "Possibilidade de neve" e geada não contam: só neve caindo de fato. Frio sozinho também
+/// não conta (a neve aparecia em dias frios sem nevar).
+bool estaNevando(String? resumo) {
+  final r = (resumo ?? '').toLowerCase();
+  if (!r.contains('neve')) return false;
+  return !RegExp(r'possibilidade|chance|risco|pode |poss[ií]ve').hasMatch(r);
+}
+
+/// 23, 24 e 25 de dezembro: o trenó com renas aparece no céu (pedido do usuário).
+bool ehNatal(DateTime d) => d.month == 12 && d.day >= 23 && d.day <= 25;
+
+/// Escolhe o cenário. Ordem: nevando, calor, chuva forte, dia bom; senão, morros.
 Paisagem escolherPaisagem({
   required EstadoCeu estado,
   required double? temperatura,
@@ -68,14 +80,7 @@ Paisagem escolherPaisagem({
   required double? chuvaUltimaHora,
   required String? resumo,
 }) {
-  final r = (resumo ?? '').toLowerCase();
-  final chuva = estado == EstadoCeu.chuva || estado == EstadoCeu.trovoada;
-  // Frio sem chuva, perto de zero com chuva, ou neve/geada no texto.
-  if ((temperatura != null && temperatura <= (chuva ? 2 : 10)) ||
-      r.contains('neve') ||
-      r.contains('geada')) {
-    return Paisagem.neve;
-  }
+  if (estaNevando(resumo)) return Paisagem.neve;
   final calor = sensacao ?? temperatura;
   if (calor != null && calor >= 35 && estado != EstadoCeu.chuva && estado != EstadoCeu.trovoada) {
     return Paisagem.vulcao;
@@ -115,10 +120,14 @@ class TopoCeu extends StatefulWidget {
     this.minima,
     this.idadeLua,
     this.estimativa = false,
+    this.natal,
   });
 
   final EstadoCeu estado;
   final bool noite;
+
+  /// Trenó do Papai Noel no céu. Nulo = automático (23, 24 e 25 de dezembro).
+  final bool? natal;
 
   /// Altura do sol no céu em graus (nulo sem coordenadas da cidade).
   final double? alturaSol;
@@ -200,6 +209,7 @@ class _TopoCeuState extends State<TopoCeu> with SingleTickerProviderStateMixin {
                     paisagem: w.paisagem,
                     idadeLua: w.idadeLua,
                     quadro: _quadro,
+                    natal: w.natal ?? ehNatal(DateTime.now()),
                   ),
                 ),
               ),
@@ -380,7 +390,11 @@ class PintorCeuPixel extends CustomPainter {
     required this.idadeLua,
     required this.quadro,
     this.paisagem = Paisagem.morros,
+    this.natal = false,
   }) : super(repaint: quadro);
+
+  /// Mostra o trenó com renas atravessando o céu.
+  final bool natal;
 
   static const tamanhoPixel = 3.0;
 
@@ -547,6 +561,15 @@ class PintorCeuPixel extends CustomPainter {
       final percurso = cols + larg * 2;
       final x0 = ((_sorteio(i, 8) * percurso).floor() + q ~/ passo) % percurso - larg;
       _nuvem(px, x0, y0, larg, alto, corNuvem);
+    }
+
+    // 4b) Natal: trenó com renas atravessando o céu, pequeno, no alto.
+    if (natal) {
+      const largura = 23;
+      final passo = 2; // 1 pixel a cada 2 quadros (~6 pixels por segundo)
+      final percurso = cols + largura + 160; // pausa entre uma passagem e outra
+      final x = (q ~/ passo) % percurso - largura;
+      if (x < cols) _treno(px, x, 1, q);
     }
 
     // 5) Paisagem: morros com mar ou campo, ou um cenário do tipo de dia.
@@ -912,6 +935,57 @@ class PintorCeuPixel extends CustomPainter {
     }
   }
 
+  /// Papai Noel no trenó puxado por 2 renas, indo para a direita (23 × 6 pixels).
+  /// Desenho próprio, feito por código.
+  void _treno(_Px px, int x, int y, int q) {
+    const cores = {
+      'r': Color(0xFFD62B2B), // roupa e gorro
+      'W': Color(0xFFFFFFFF), // pompom, barba, borda do gorro
+      'S': Color(0xFFF2C29B), // rosto
+      'R': Color(0xFF8E1B1B), // trenó
+      'Y': Color(0xFFE8B83A), // esqui dourado
+      'b': Color(0xFF9C6B3F), // rena
+      'a': Color(0xFF5E3F22), // chifre e pernas
+      'k': Color(0xFF3A2A1A), // rédea
+    };
+    void desenha(List<String> linhas, int x0, int y0) {
+      for (var j = 0; j < linhas.length; j++) {
+        final l = linhas[j];
+        for (var i = 0; i < l.length; i++) {
+          final c = cores[l[i]];
+          if (c != null) px(x0 + i, y0 + j, c);
+        }
+      }
+    }
+
+    // Sobe e desce devagar; as renas galopam (pernas alternam a cada 3 quadros).
+    final onda = (q ~/ 8) % 4 == 0 ? 1 : 0;
+    final galope = (q ~/ 3).isEven;
+    const treno = [
+      '...rW...',
+      '..WrrW..',
+      '..SWW...',
+      'R.rrrr..',
+      'RRRRRRR.',
+      '.YYYYYYY',
+    ];
+    final rena = [
+      '....a.',
+      '....bb',
+      'bbbbb.',
+      'bbbb..',
+      galope ? 'a..a..' : '.aa...',
+    ];
+    desenha(treno, x, y + onda);
+    // Rédea do trenó até a primeira rena.
+    for (var i = 7; i < 9; i++) {
+      px(x + i, y + 3 + onda, cores['k']!);
+    }
+    desenha(rena, x + 9, y + 1 + onda);
+    px(x + 15, y + 3 + onda, cores['k']!);
+    desenha(rena, x + 16, y + (1 - onda));
+  }
+
   /// Frio: montanhas nevadas, casas de madeira na encosta, pinheiros e neve caindo.
   void _neve(_Px px, int cols, int linhas, int linhaChao, int q) {
     final rocha = noite ? const Color(0xFF3A4458) : const Color(0xFF7D8A9C);
@@ -1031,5 +1105,6 @@ class PintorCeuPixel extends CustomPainter {
       old.litoral != litoral ||
       old.alturaSol != alturaSol ||
       old.idadeLua != idadeLua ||
-      old.paisagem != paisagem;
+      old.paisagem != paisagem ||
+      old.natal != natal;
 }
