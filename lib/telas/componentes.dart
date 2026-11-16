@@ -113,15 +113,32 @@ class GradeDados extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       final colunas = (c.maxWidth / 170).floor().clamp(2, 4);
-      final largura = (c.maxWidth - espaco * (colunas - 1)) / colunas;
+      double larguraDe(int n) => (c.maxWidth - espaco * (n - 1)) / n;
+      bool largo(Widget w) => w is Dado && w.lateral != null;
+      // Larguras: quadrinho com círculo ocupa a linha toda; numa sequência de quadrinhos
+      // comuns, a última linha incompleta divide a largura entre os que sobraram
+      // (assim não fica buraco ao lado de um quadrinho sozinho).
+      final larguras = List<double>.filled(children.length, larguraDe(colunas));
+      var inicio = 0;
+      for (var i = 0; i <= children.length; i++) {
+        if (i == children.length || largo(children[i])) {
+          final n = i - inicio;
+          final resto = n % colunas;
+          if (resto > 0) {
+            for (var k = i - resto; k < i; k++) {
+              larguras[k] = larguraDe(resto);
+            }
+          }
+          if (i < children.length) larguras[i] = c.maxWidth;
+          inicio = i + 1;
+        }
+      }
       return Wrap(
         spacing: espaco,
         runSpacing: espaco,
         children: [
-          for (final w in children)
-            SizedBox(
-                width: w is Dado && w.lateral != null ? c.maxWidth : largura,
-                child: w),
+          for (var i = 0; i < children.length; i++)
+            SizedBox(width: larguras[i], child: children[i]),
         ],
       );
     });

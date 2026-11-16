@@ -22,6 +22,8 @@ class Medicao {
     this.rajadaKmh,
     this.ventoDirecao,
     this.pressao,
+    this.orvalho,
+    this.visibilidadeKm,
     this.chuva1h,
     this.temperaturaMax,
     this.temperaturaMin,
@@ -52,7 +54,14 @@ class Medicao {
   final double? ventoKmh;
   final double? rajadaKmh;
   final int? ventoDirecao;
+  /// Pressão ao nível da estação ou do mar, em hPa.
   final double? pressao;
+
+  /// Ponto de orvalho (°C).
+  final double? orvalho;
+
+  /// Visibilidade horizontal (km).
+  final double? visibilidadeKm;
   final double? chuva1h;
   final double? temperaturaMax;
   final double? temperaturaMin;
@@ -210,6 +219,7 @@ Medicao? lerEstacaoInmet(String corpo) {
     rajadaKmh: raj == null ? null : raj * 3.6,
     ventoDirecao: _int(d['VEN_DIR']),
     pressao: _num(d['PRE_INS']),
+    orvalho: _num(d['PTO_INS']),
     chuva1h: _num(d['CHUVA']),
     temperaturaMax: _num(d['TEM_MAX']),
     temperaturaMin: _num(d['TEM_MIN']),
@@ -244,6 +254,8 @@ Medicao comDistanciaDe(Medicao m, double lat, double lon) {
     rajadaKmh: m.rajadaKmh,
     ventoDirecao: m.ventoDirecao,
     pressao: m.pressao,
+    orvalho: m.orvalho,
+    visibilidadeKm: m.visibilidadeKm,
     chuva1h: m.chuva1h,
     temperaturaMax: m.temperaturaMax,
     temperaturaMin: m.temperaturaMin,
@@ -697,6 +709,8 @@ EstimativaOpenMeteo lerOpenMeteo(String corpo) {
         rajadaKmh: _num(c['wind_gusts_10m']),
         ventoDirecao: _int(c['wind_direction_10m']),
         pressao: _num(c['pressure_msl']),
+        orvalho: _num(c['dew_point_2m']),
+        visibilidadeKm: _num(c['visibility']) == null ? null : _num(c['visibility'])! / 1000,
         chuva1h: _num(c['precipitation']),
       );
     }
@@ -742,7 +756,13 @@ class VentoAeroporto {
     this.variavel = false,
     this.temperatura,
     this.orvalho,
+    this.visibilidadeKm,
+    this.pressao,
   });
+
+  /// Visibilidade (km) e pressão ajustada ao nível do mar (hPa) do boletim.
+  final double? visibilidadeKm;
+  final double? pressao;
 
   /// Temperatura e ponto de orvalho (°C) do boletim do aeroporto.
   final double? temperatura;
@@ -775,6 +795,16 @@ class VentoAeroporto {
 
 const _noParaKmh = 1.852;
 
+/// Visibilidade do METAR em milhas terrestres ("10+" = 10 ou mais) convertida para km.
+double? visibilidadeMetarKm(Object? v) {
+  if (v is num) return v * 1.609;
+  if (v is String) {
+    final n = double.tryParse(v.replaceAll('+', '').trim());
+    return n == null ? null : n * 1.609;
+  }
+  return null;
+}
+
 /// `https://aviationweather.gov/api/data/metar?bbox=<s>,<o>,<n>,<l>&format=json`
 List<VentoAeroporto> lerVentoAeroportos(String corpo) {
   final lista = jsonDecode(corpo);
@@ -802,6 +832,8 @@ List<VentoAeroporto> lerVentoAeroportos(String corpo) {
       variavel: wdir is String && wdir.toUpperCase() == 'VRB',
       temperatura: _num(m['temp'])?.toDouble(),
       orvalho: _num(m['dewp'])?.toDouble(),
+      visibilidadeKm: visibilidadeMetarKm(m['visib']),
+      pressao: _num(m['altim'])?.toDouble(),
     ));
   }
   return r;

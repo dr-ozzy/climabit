@@ -255,6 +255,37 @@ const corFrio = Color(0xFF3B82D6);
   return ('Muito forte', corPerigo);
 }
 
+/// Avaliação da visibilidade horizontal (km).
+(String, Color) avaliarVisibilidade(double km) {
+  if (km >= 10) return ('Boa', corBoa);
+  if (km >= 5) return ('Moderada', corAtencao);
+  if (km >= 1) return ('Ruim', corRuim);
+  return ('Nevoeiro', corPerigo);
+}
+
+/// Avaliação da pressão (hPa): abaixo de 1005 costuma vir com tempo instável.
+(String, Color) avaliarPressao(double hpa) {
+  if (hpa < 1005) return ('Baixa pressão', corAtencao);
+  if (hpa <= 1022) return ('Normal', corBoa);
+  return ('Alta pressão', corBoa);
+}
+
+/// Avaliação do ponto de orvalho (°C): quanto mais alto, mais abafado.
+(String, Color) avaliarOrvalho(double td) {
+  if (td < 10) return ('Seco', corBoa);
+  if (td < 16) return ('Confortável', corBoa);
+  if (td < 19) return ('Úmido', corAtencao);
+  if (td < 22) return ('Abafado', corRuim);
+  return ('Muito abafado', corRuim);
+}
+
+/// Ponto de orvalho calculado pela fórmula de Magnus (temperatura em °C, umidade em %).
+double? orvalhoCalculado(double? t, double? ur) {
+  if (t == null || ur == null || ur <= 0) return null;
+  final g = math.log(ur / 100) + 17.625 * t / (243.04 + t);
+  return 243.04 * g / (17.625 - g);
+}
+
 /// Avaliação do índice UV (escala da OMS).
 (String, Color) avaliarUv(double uv) {
   final c = categoriaUv(uv);

@@ -253,6 +253,9 @@ class Repositorio extends ChangeNotifier {
         ventoKmh: aero.ventoKmh,
         rajadaKmh: aero.rajadaKmh,
         ventoDirecao: aero.direcao,
+        orvalho: aero.orvalho,
+        pressao: aero.pressao,
+        visibilidadeKm: aero.visibilidadeKm,
         latitude: aero.latitude,
         longitude: aero.longitude,
       );
@@ -524,7 +527,7 @@ Uri _enderecoOpenMeteo(double lat, double lon) => Uri.https('api.open-meteo.com'
       'latitude': lat.toStringAsFixed(2),
       'longitude': lon.toStringAsFixed(2),
       'current': 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,'
-          'pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
+          'pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,visibility',
       'daily': 'weather_code,temperature_2m_max,temperature_2m_min,'
           'precipitation_probability_max,uv_index_max',
       'timezone': 'America/Sao_Paulo',

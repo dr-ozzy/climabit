@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tempo_oficial/dados/fontes.dart';
 import 'package:tempo_oficial/telas/ceu.dart';
 import 'package:tempo_oficial/util/formatos.dart';
 
@@ -25,6 +26,19 @@ void main() {
     expect(avaliarVento(9).$1, 'Fraco');
     expect(avaliarChuva(0).$1, 'Sem chuva');
     expect(avaliarUv(2).$1, 'Baixo');
+  });
+
+  test('visibilidade, pressão e ponto de orvalho', () {
+    expect(avaliarVisibilidade(10).$1, 'Boa');
+    expect(avaliarVisibilidade(6).$1, 'Moderada');
+    expect(avaliarVisibilidade(0.5).$1, 'Nevoeiro');
+    expect(avaliarPressao(1000).$1, 'Baixa pressão');
+    expect(avaliarPressao(1013).$1, 'Normal');
+    expect(avaliarOrvalho(23).$1, 'Muito abafado');
+    expect(orvalhoCalculado(25, 100)!.round(), 25);
+    expect(orvalhoCalculado(30, 50)!.round(), 18);
+    expect(visibilidadeMetarKm('10+')!.round(), 16);
+    expect(visibilidadeMetarKm(6)!.round(), 10);
   });
 
   test('trenó só de 23 a 25 de dezembro', () {

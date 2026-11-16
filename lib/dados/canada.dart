@@ -123,6 +123,9 @@ DadosCanada lerCanada(String corpo) {
       rajadaKmh: _numero(vento['gust']),
       ventoDirecao: _numero(vento['bearing'])?.round(),
       sensacao: _numero(cc['windChill']) ?? _numero(cc['humidex']),
+      orvalho: _numero(cc['dewpoint']),
+      pressao: _numero(cc['pressure']) == null ? null : _numero(cc['pressure'])! * 10, // kPa -> hPa
+      visibilidadeKm: _numero(cc['visibility']),
       latitude: _coord(est['lat']),
       longitude: _coord(est['lon']),
     );

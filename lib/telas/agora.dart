@@ -187,6 +187,14 @@ class _CartaoMedicao extends StatelessWidget {
     final direcao = a != null
         ? (a.variavel ? 'variável' : direcaoVento(a.direcao))
         : direcaoVento(m.ventoKmh != null ? m.ventoDirecao : ve?.ventoDirecao);
+    // Visibilidade: aeroporto (METAR) ou a própria fonte (Canadá, estimativa).
+    // Arredondada como aparece na tela, para a avaliação combinar com o número mostrado.
+    final visBruta = a?.visibilidadeKm ?? m.visibilidadeKm;
+    final visibilidade =
+        visBruta == null ? null : (visBruta < 1 ? visBruta : visBruta.roundToDouble());
+    final pressao = m.pressao ?? a?.pressao;
+    // Ponto de orvalho medido; senão, calculado da temperatura e da umidade mostradas.
+    final orvalho = m.orvalho ?? orvalhoCalculado(m.temperatura, m.umidade);
     final int? graus = a != null
         ? (a.variavel ? null : a.direcao)
         : (m.ventoKmh != null ? m.ventoDirecao : ve?.ventoDirecao);
@@ -246,7 +254,15 @@ class _CartaoMedicao extends StatelessWidget {
                     detalhe: m.chuva1h == null ? null : avaliarChuva(m.chuva1h!).$1,
                     corDetalhe: m.chuva1h == null ? null : avaliarChuva(m.chuva1h!).$2),
             // Sensação térmica fica no quadro do céu, embaixo da temperatura.
-            // Rajada entra no quadrinho do Vento para a grade não ficar com buraco.
+            _avaliado(Icons.water_drop_outlined, 'Umidade', comUnidade(m.umidade, '%'),
+                m.umidade == null ? null : avaliarUmidade(m.umidade!)),
+            if (visibilidade != null)
+              _avaliado(
+                  Icons.visibility_outlined,
+                  'Visibilidade',
+                  visibilidade < 1 ? '${decimal(visibilidade)} km' : '${inteiro(visibilidade)} km',
+                  avaliarVisibilidade(visibilidade)),
+            // Rajada entra no quadrinho do Vento.
             _avaliado(Icons.air, 'Vento', vento,
                 ventoKmh == null
                     ? null
@@ -255,8 +271,6 @@ class _CartaoMedicao extends StatelessWidget {
                         : ('${avaliarVento(ventoKmh).$1} · rajadas de ${inteiro(rajadaKmh)} km/h',
                             avaliarVento(rajadaKmh).$2),
                 lateral: graus != null && (ventoKmh ?? 0) >= 1 ? _setaVento(graus) : null),
-            _avaliado(Icons.water_drop_outlined, 'Umidade', comUnidade(m.umidade, '%'),
-                m.umidade == null ? null : avaliarUmidade(m.umidade!)),
             if (m.uv != null)
               _avaliado(Icons.wb_sunny_outlined, 'Índice UV agora', decimal(m.uv),
                   avaliarUv(m.uv!))
@@ -273,6 +287,11 @@ class _CartaoMedicao extends StatelessWidget {
                 uvMax.uv!.round() > (uvAgora ?? 0).round())
               _avaliado(Icons.wb_sunny, 'UV máximo hoje',
                   '${inteiro(uvMax.uv)} às ${uvMax.hora.hour}h', avaliarUv(uvMax.uv!)),
+            if (pressao != null)
+              _avaliado(Icons.compress, 'Pressão', '${inteiro(pressao)} hPa', avaliarPressao(pressao)),
+            if (orvalho != null)
+              _avaliado(Icons.opacity, 'Ponto de orvalho', '${inteiro(orvalho)} °C',
+                  avaliarOrvalho(orvalho)),
           ],
         ),
         const SizedBox(height: 12),
