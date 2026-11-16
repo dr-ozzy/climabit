@@ -21,6 +21,7 @@ private fun preencher(
     layout: Int,
     prefixoFundo: String?,
     campos: Set<Int>,
+    chaveAlerta: String = "texto_alerta",
 ) {
     for (id in ids) {
         val v = RemoteViews(context.packageName, layout)
@@ -76,7 +77,8 @@ private fun preencher(
             v.setInt(R.id.alerta, "setBackgroundColor",
                 if (vermelho) Color.parseColor("#D32F2F") else Color.parseColor("#FFC107"))
             if (R.id.alerta_texto in campos) {
-                v.setTextViewText(R.id.alerta_texto, dados.getString("texto_alerta", "Alerta"))
+                v.setTextViewText(R.id.alerta_texto, dados.getString(chaveAlerta, null)
+                    .takeUnless { it.isNullOrEmpty() } ?: dados.getString("texto_alerta", "Alerta"))
                 v.setTextColor(R.id.alerta_texto,
                     if (vermelho) Color.WHITE else Color.parseColor("#1F1A00"))
             }
@@ -135,7 +137,7 @@ class WidgetClima4x2 : HomeWidgetProvider() {
 
 /** Campos da barra 4 × 1: agora e 3 horas do dia, cada uma com temperatura e sensação. */
 private val camposBarra = setOf(
-    R.id.cidade, R.id.sensacao,
+    R.id.cidade, R.id.sensacao, R.id.alerta_texto,
     R.id.h1_hora, R.id.h1_temp, R.id.h1_sens,
     R.id.h2_hora, R.id.h2_temp, R.id.h2_sens,
     R.id.h3_hora, R.id.h3_temp, R.id.h3_sens,
@@ -146,7 +148,7 @@ class WidgetClima4x1 : HomeWidgetProvider() {
         context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) = preencher(context, appWidgetManager, appWidgetIds, widgetData, R.layout.widget_clima_4x1, "l",
-        camposBarra)
+        camposBarra, "alerta_curto")
 }
 
 class WidgetSimples4x1 : HomeWidgetProvider() {
@@ -154,7 +156,7 @@ class WidgetSimples4x1 : HomeWidgetProvider() {
         context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) = preencher(context, appWidgetManager, appWidgetIds, widgetData,
-        R.layout.widget_simples_4x1, null, camposBarra)
+        R.layout.widget_simples_4x1, null, camposBarra, "alerta_curto")
 }
 
 class WidgetSimples1x1 : HomeWidgetProvider() {

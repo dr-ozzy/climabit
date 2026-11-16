@@ -40,7 +40,11 @@ class DadosWidget {
     required this.textoAlerta,
     this.sensacao = '',
     this.horas = const [],
+    this.alertaCurto = '',
   });
+
+  /// Resumo do alerta em uma linha breve (barra 4 × 1): "Tempestade até 23:59 (+1)".
+  final String alertaCurto;
 
   /// "sensação 26°" (barra 4 × 1).
   final String sensacao;
@@ -78,6 +82,7 @@ class DadosWidget {
         'nivel_alerta': nivelAlerta,
         'texto_alerta': textoAlerta,
         'sensacao': sensacao,
+        'alerta_curto': alertaCurto,
         for (var i = 0; i < 3; i++) ...{
           'h${i + 1}_hora': i < horas.length ? horas[i].$1 : '',
           'h${i + 1}_temp': i < horas.length ? horas[i].$2 : '',
@@ -130,14 +135,17 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
   final sirenes = repo.sirenes.where((s) => s.acionada).toList();
   var nivel = 0;
   var texto = '';
+  var curto = '';
   if (sirenes.isNotEmpty) {
     nivel = 2;
     texto = sirenes.length == 1 ? 'Sirene acionada' : '${sirenes.length} sirenes acionadas';
+    curto = texto;
   } else if (alertas.isNotEmpty) {
     nivel = gravidadeAlerta(alertas.first) >= 2 ? 2 : 1;
     texto = alertas.length == 1
         ? 'Alerta: ${alertas.first.descricao}'
         : '${alertas.length} alertas: ${alertas.first.descricao}';
+    curto = resumoAlerta(alertas.first, alertas.length, agora);
   }
 
   return DadosWidget(
@@ -163,6 +171,7 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
     nivelAlerta: nivel,
     textoAlerta: texto,
     sensacao: sensacaoAgora == null ? '' : 'sensação ${sensacaoAgora.round()}°',
+    alertaCurto: curto,
     horas: [
       for (final h in horasDoDia(repo.chuvaHoraria, agora))
         (
@@ -172,6 +181,14 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
         ),
     ],
   );
+}
+
+/// Alerta em uma linha: descrição sem o prefixo "Aviso:", até quando vale e quantos
+/// alertas a mais existem.
+String resumoAlerta(Alerta a, int total, DateTime agora) {
+  final d = a.descricao.replaceFirst(RegExp(r'^(Alerta|Aviso)\s*:\s*', caseSensitive: false), '');
+  final nome = d.isEmpty ? 'Alerta' : '${d[0].toUpperCase()}${d.substring(1)}';
+  return '$nome até ${quando(a.fim, agora: agora)}${total > 1 ? ' (+${total - 1})' : ''}';
 }
 
 /// 3 horas à frente, de 3 em 3 horas (15h, 18h, 21h...), com temperatura prevista.

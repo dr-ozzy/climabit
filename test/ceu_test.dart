@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:tempo_oficial/dados/fontes.dart';
 import 'package:tempo_oficial/dados/widget_tela.dart';
 import 'package:tempo_oficial/telas/ceu.dart';
 import 'package:tempo_oficial/util/formatos.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('pt_BR'));
+
   test('céu: chuva medida manda no fundo; nuvens vêm da previsão', () {
     expect(estadoCeu(resumoPeriodo: 'Muitas nuvens com chuva', chuvaUltimaHora: 0),
         EstadoCeu.nublado);
@@ -49,6 +52,17 @@ void main() {
         HoraChuva(hora: DateTime(2026, 11, 16, 13).add(Duration(hours: i)), temperatura: 20.0 + i),
     ];
     expect(horasDoDia(horas, agora).map((h) => h.hora.hour).toList(), [15, 18, 21]);
+  });
+
+  test('alerta resumido em uma linha', () {
+    final agora = DateTime(2026, 11, 16, 14);
+    Alerta a(String d, DateTime fim) => Alerta(
+        id: '1', descricao: d, severidade: 'Perigo Potencial', cor: 'amarelo',
+        inicio: DateTime(2026, 11, 16, 8), fim: fim);
+    expect(resumoAlerta(a('Tempestade', DateTime(2026, 11, 16, 23, 59)), 1, agora),
+        'Tempestade até 23:59');
+    expect(resumoAlerta(a('Aviso: chuva forte', DateTime(2026, 11, 17, 6)), 2, agora),
+        'Chuva forte até 17/11 às 06:00 (+1)');
   });
 
   test('trenó só de 23 a 25 de dezembro', () {

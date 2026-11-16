@@ -7,6 +7,9 @@
     android:background="@drawable/widget_fundo_simples"
     android:clipToOutline="true">
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="14dp" android:paddingEnd="10dp">
         <ImageView android:id="@+id/icone" android:layout_width="28dp" android:layout_height="28dp"
@@ -46,6 +49,15 @@
                 android:layout_marginTop="1dp" />
         </LinearLayout>
     </LinearLayout>
+    <!-- Alerta resumido em uma linha (some quando não há alerta). -->
     <LinearLayout android:id="@+id/alerta" android:layout_width="match_parent"
-        android:layout_height="4dp" android:layout_gravity="bottom" android:visibility="gone" />
+        android:layout_height="wrap_content" android:gravity="center"
+        android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="1dp"
+        android:paddingBottom="2dp" android:visibility="gone">
+        <TextView android:id="@+id/alerta_texto" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:textSize="10sp"
+            android:textStyle="bold" android:maxLines="1" android:ellipsize="end"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+    </LinearLayout>
 </FrameLayout>
