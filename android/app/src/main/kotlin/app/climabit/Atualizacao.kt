@@ -30,6 +30,8 @@ object Atualizacao {
                     pasta.listFiles()?.forEach { it.delete() }
                     result.success(pasta.absolutePath)
                 }
+                // O APK publicado é só para processadores de 64 bits (arm64-v8a).
+                "suporta64" -> result.success(Build.SUPPORTED_ABIS.contains("arm64-v8a"))
                 "podeInstalar" -> result.success(
                     Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
                         activity.packageManager.canRequestPackageInstalls()

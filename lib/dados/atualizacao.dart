@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Versão deste app. Mude junto com `version` no pubspec.yaml.
-const versaoApp = '1.20.0';
+const versaoApp = '1.20.1';
 
 /// Repositório público onde cada versão é publicada (GitHub Releases).
 const repositorioApp = 'dr-ozzy/climabit';
@@ -80,7 +80,10 @@ Future<NovaVersao?> verificarAtualizacao({bool forcar = false}) async {
       headers: const {'Accept': 'application/vnd.github+json'},
     ).timeout(const Duration(seconds: 10));
     if (r.statusCode != 200) return null;
-    return lerRelease(jsonDecode(r.body) as Map<String, dynamic>, versaoApp);
+    final nova = lerRelease(jsonDecode(r.body) as Map<String, dynamic>, versaoApp);
+    // O APK publicado é só para celulares de 64 bits: nos outros, não oferece (não instalaria).
+    if (nova != null && !(await _canal.invokeMethod<bool>('suporta64') ?? true)) return null;
+    return nova;
   } catch (_) {
     return null;
   }
