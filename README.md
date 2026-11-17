@@ -10,7 +10,7 @@ Defesa Civil e, no Canadá, Environment and Climate Change Canada (ECCC).
 
 ## Instalar
 
-Baixe o arquivo `.apk` da [versão mais recente](https://github.com/dr-ozzy/climabit/releases/latest)
+Baixe o arquivo `.apk` da [versão mais recente](https://github.com/dr-ozzy/climabit/releases/latest) (para celulares de 64 bits, quase todos desde 2017)
 e abra no celular. Depois disso, o próprio app avisa quando houver versão nova.
 
 ## Compilar
