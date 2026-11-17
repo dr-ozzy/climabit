@@ -27,6 +27,12 @@ android {
 
     defaultConfig {
         applicationId = "app.climabit"
+        // APK publicado só para 64 bits (flutter build apk --target-platform android-arm64):
+        // leva só as bibliotecas arm64, para um celular de 32 bits recusar a instalação em vez
+        // de instalar e fechar ao abrir. Sem essa opção (emulador), leva todas.
+        if ((project.findProperty("target-platform") as String?) == "android-arm64") {
+            packaging { jniLibs { excludes += listOf("lib/armeabi-v7a/**", "lib/x86_64/**", "lib/x86/**") } }
+        }
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
