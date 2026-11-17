@@ -186,9 +186,11 @@ class _TopoCeuState extends State<TopoCeu> with SingleTickerProviderStateMixin {
     ];
     const brancoSuave = Color(0xE6FFFFFF);
     final tema = Theme.of(context).textTheme;
-    final temp = w.temperatura == null
-        ? '–'
-        : '${w.temperatura!.toStringAsFixed(1).replaceAll('.', ',')}°';
+    // Parte inteira grande; ",5°" pequeno no alto, para o decimal não chamar atenção
+    // (sugestão de um testador, aprovada pelo usuário).
+    final partes = w.temperatura?.toStringAsFixed(1).split('.');
+    final tempInteira = partes == null ? '–' : partes[0];
+    final tempDecimal = partes == null ? '' : ',${partes[1]}°';
     final maxMin =
         w.maxima != null && w.minima != null ? 'Máx. ${w.maxima}° · Mín. ${w.minima}°' : null;
     return Padding(
@@ -235,13 +237,24 @@ class _TopoCeuState extends State<TopoCeu> with SingleTickerProviderStateMixin {
                 if (w.estimativa)
                   Text('Estimativa (sem estação oficial perto)',
                       style: tema.labelMedium?.copyWith(color: brancoSuave, shadows: sombra)),
-                Text(temp,
-                    style: tema.displayLarge?.copyWith(
-                        color: branco,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: -1,
-                        shadows: sombra,
-                        height: 1.05)),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tempInteira,
+                      style: tema.displayLarge?.copyWith(
+                          color: branco,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: -1,
+                          shadows: sombra,
+                          height: 1.05)),
+                  if (tempDecimal.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, left: 1),
+                      child: Text(tempDecimal,
+                          style: tema.titleLarge?.copyWith(
+                              color: brancoSuave,
+                              fontWeight: FontWeight.w400,
+                              shadows: sombra)),
+                    ),
+                ]),
                 if (w.sensacao != null)
                   Text('Sensação térmica ${w.sensacao!.round()}°',
                       style: tema.bodyLarge?.copyWith(
