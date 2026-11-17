@@ -237,8 +237,10 @@ class _TopoCeuState extends State<TopoCeu> with SingleTickerProviderStateMixin {
                 if (w.estimativa)
                   Text('Estimativa (sem estação oficial perto)',
                       style: tema.labelMedium?.copyWith(color: brancoSuave, shadows: sombra)),
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(tempInteira,
+                // O decimal fica na mesma linha de base do número grande (pedido do usuário).
+                Text.rich(TextSpan(children: [
+                  TextSpan(
+                      text: tempInteira,
                       style: tema.displayLarge?.copyWith(
                           color: branco,
                           fontWeight: FontWeight.w300,
@@ -246,15 +248,13 @@ class _TopoCeuState extends State<TopoCeu> with SingleTickerProviderStateMixin {
                           shadows: sombra,
                           height: 1.05)),
                   if (tempDecimal.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, left: 1),
-                      child: Text(tempDecimal,
-                          style: tema.titleLarge?.copyWith(
-                              color: brancoSuave,
-                              fontWeight: FontWeight.w400,
-                              shadows: sombra)),
-                    ),
-                ]),
+                    TextSpan(
+                        text: tempDecimal,
+                        style: tema.titleLarge?.copyWith(
+                            color: brancoSuave,
+                            fontWeight: FontWeight.w400,
+                            shadows: sombra)),
+                ])),
                 if (w.sensacao != null)
                   Text('Sensação térmica ${w.sensacao!.round()}°',
                       style: tema.bodyLarge?.copyWith(
