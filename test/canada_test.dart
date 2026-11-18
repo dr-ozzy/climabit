@@ -46,4 +46,13 @@ void main() {
     expect(a.first.fim.toUtc(), DateTime.utc(2026, 11, 15, 4, 27, 57));
     expect(a.first.id, isNot(a.last.id));
   });
+
+  test('Canadá: descarta frio do vento ou humidex sem sentido', () {
+    // ECCC em 18/11/2026: 13 °C com frio do vento de −4 °C (valor antigo).
+    expect(sensacaoCanadaPlausivel(13, -4, null), isNull);
+    expect(sensacaoCanadaPlausivel(4.9, -4, null), -4);
+    expect(sensacaoCanadaPlausivel(30, null, 38), 38);
+    expect(sensacaoCanadaPlausivel(15, null, 22), isNull);
+    expect(sensacaoCanadaPlausivel(null, -4, null), isNull);
+  });
 }

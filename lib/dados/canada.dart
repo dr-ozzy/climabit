@@ -99,6 +99,21 @@ int codigoWmoCanada(int? c) => switch (c) {
       _ => 2,
     };
 
+/// Frio do vento ou humidex do ECCC, só quando o valor faz sentido para a temperatura.
+/// O ECCC às vezes repete um frio do vento antigo (ex.: −4 °C com 13 °C, em 2026-11-18).
+/// Frio do vento só existe com 10 °C ou menos e fica abaixo da temperatura; humidex só
+/// com 20 °C ou mais e fica acima dela. Fora disso, devolve null (o app calcula).
+double? sensacaoCanadaPlausivel(double? temp, double? windChill, double? humidex) {
+  if (temp == null) return null;
+  if (windChill != null && temp <= 10 && windChill <= temp && temp - windChill <= 35) {
+    return windChill;
+  }
+  if (humidex != null && temp >= 20 && humidex >= temp && humidex - temp <= 25) {
+    return humidex;
+  }
+  return null;
+}
+
 DadosCanada lerCanada(String corpo) {
   final j = jsonDecode(corpo);
   if (j is! Map<String, dynamic>) return const DadosCanada();
@@ -123,7 +138,8 @@ DadosCanada lerCanada(String corpo) {
       ventoKmh: _numero(vento['speed']),
       rajadaKmh: _numero(vento['gust']),
       ventoDirecao: _numero(vento['bearing'])?.round(),
-      sensacao: _numero(cc['windChill']) ?? _numero(cc['humidex']),
+      sensacao: sensacaoCanadaPlausivel(
+          _numero(cc['temperature']), _numero(cc['windChill']), _numero(cc['humidex'])),
       orvalho: _numero(cc['dewpoint']),
       pressao: _numero(cc['pressure']) == null ? null : _numero(cc['pressure'])! * 10, // kPa -> hPa
       visibilidadeKm: _numero(cc['visibility']),
@@ -198,7 +214,8 @@ DadosCanada lerCanada(String corpo) {
         hora: t,
         temperatura: tempHora,
         // Índice oficial (humidex ou frio do vento) ou, sem ele, frio do vento calculado.
-        sensacao: _numero(h['humidex']) ?? _numero(h['windChill']) ??
+        sensacao: sensacaoCanadaPlausivel(
+                tempHora, _numero(h['windChill']), _numero(h['humidex'])) ??
             sensacaoTermica(tempHora, null, ventoHora),
         probabilidade: _numero(h['lop'])?.round(),
         codigo: codigoWmoCanada(icone),
