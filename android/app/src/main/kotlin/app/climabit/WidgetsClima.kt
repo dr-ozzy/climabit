@@ -4,9 +4,11 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
+import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 
 /**
@@ -67,6 +69,18 @@ private fun preencher(
                 context.packageName)
             v.setImageViewResource(
                 R.id.icone, if (icone != 0) icone else R.drawable.ic_tempo_parcial_dia)
+        }
+
+        // Barra estreita (3 colunas da tela inicial): mostra só 2 horas, para os textos caberem.
+        if (R.id.h3_coluna in campos) {
+            val largura = gerenciador.getAppWidgetOptions(id)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+            val estreita = largura in 1 until 285
+            v.setViewVisibility(R.id.h3_coluna, if (estreita) View.GONE else View.VISIBLE)
+            if (estreita) {
+                textoOpcional(v, R.id.sensacao,
+                    dados.getString("sensacao", "")?.replace("sensação", "sens."))
+            }
         }
 
         // Faixa de alerta: amarela (potencial perigo) ou vermelha (perigo, sirene).
@@ -140,10 +154,22 @@ private val camposBarra = setOf(
     R.id.cidade, R.id.sensacao, R.id.alerta_texto,
     R.id.h1_hora, R.id.h1_temp, R.id.h1_sens,
     R.id.h2_hora, R.id.h2_temp, R.id.h2_sens,
-    R.id.h3_hora, R.id.h3_temp, R.id.h3_sens,
+    R.id.h3_hora, R.id.h3_temp, R.id.h3_sens, R.id.h3_coluna,
 )
 
-class WidgetClima4x1 : HomeWidgetProvider() {
+/** Barra 4 × 1: redesenha quando a pessoa muda o tamanho do widget. */
+abstract class WidgetBarra : HomeWidgetProvider() {
+    override fun onAppWidgetOptionsChanged(
+        context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        onUpdate(context, appWidgetManager, intArrayOf(appWidgetId),
+            HomeWidgetPlugin.getData(context))
+    }
+}
+
+class WidgetClima4x1 : WidgetBarra() {
     override fun onUpdate(
         context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
         widgetData: SharedPreferences,
@@ -151,7 +177,7 @@ class WidgetClima4x1 : HomeWidgetProvider() {
         camposBarra, "alerta_curto")
 }
 
-class WidgetSimples4x1 : HomeWidgetProvider() {
+class WidgetSimples4x1 : WidgetBarra() {
     override fun onUpdate(
         context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray,
         widgetData: SharedPreferences,

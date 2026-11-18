@@ -548,7 +548,7 @@ class _CartaoProximasHoras extends StatelessWidget {
         Text(chuva),
         const SizedBox(height: 12),
         SizedBox(
-          height: 156,
+          height: 176,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: lista.length,
@@ -561,7 +561,7 @@ class _CartaoProximasHoras extends StatelessWidget {
           const Fonte('previsão por hora do Environment and Climate Change Canada '
               '(serviço meteorológico oficial do Canadá)')
         else
-          const Fonte('Open-Meteo (modelo, open-meteo.com): temperatura, chance de chuva e '
+          const Fonte('Open-Meteo (modelo, open-meteo.com): temperatura, sensação térmica, chance de chuva e '
               'índice UV de hora em hora. Estimativa: não é previsão oficial.'),
       ],
     );
@@ -592,6 +592,9 @@ class _ColunaHora extends StatelessWidget {
         simboloCodigoWmo(hora.codigo, hora.dia ?? true, size: 24, color: texto),
         Text(hora.temperatura == null ? '–' : '${inteiro(hora.temperatura)}°',
             style: tema.textTheme.titleMedium?.copyWith(color: texto, fontWeight: FontWeight.w600)),
+        // Sensação térmica da hora (importante no frio do Canadá e no calor do Rio).
+        Text(hora.sensacao == null ? '' : 'sens. ${inteiro(hora.sensacao)}°',
+            style: tema.textTheme.labelSmall?.copyWith(color: texto.withValues(alpha: 0.85))),
         Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.water_drop, size: 12, color: texto.withValues(alpha: 0.7)),
           Text(' $p %', style: tema.textTheme.labelSmall?.copyWith(color: texto)),

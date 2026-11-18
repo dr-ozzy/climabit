@@ -40,7 +40,7 @@
             <TextView android:id="@+id/h2_sens" android:text="sens. 25°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="10sp" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2"
                 android:layout_marginTop="1dp" />
         </LinearLayout>
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+        <LinearLayout android:id="@+id/h3_coluna" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
             <TextView android:id="@+id/h3_hora" android:text="21h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="11sp" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2" />
             <TextView android:id="@+id/h3_temp" android:text="22°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#80000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="2"

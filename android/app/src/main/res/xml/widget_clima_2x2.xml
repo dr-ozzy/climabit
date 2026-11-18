@@ -6,6 +6,8 @@
     android:targetCellHeight="2"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
+    android:maxResizeWidth="900dp"
+    android:maxResizeHeight="600dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_clima_2x2"
