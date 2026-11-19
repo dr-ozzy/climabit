@@ -51,6 +51,17 @@ class _TelaAjustesState extends State<TelaAjustes> {
 
   Future<void> _ligarChuva(bool ligar) => _ligar(ligar, _p.definirAvisoChuva);
 
+  Future<void> _exemplo() async {
+    final ok = await Notificacoes.pedirPermissao();
+    if (!ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sem a permissão de notificação o app não consegue avisar.')));
+      return;
+    }
+    await mostrarAvisoExemplo(_p.cidadeDosAvisos);
+  }
+
   Future<void> _mudarIntervalo(int min) async {
     await _p.definirIntervalo(min);
     if (mounted) setState(() {});
@@ -147,6 +158,12 @@ class _TelaAjustesState extends State<TelaAjustes> {
                   showSelectedIcon: false,
                   onSelectionChanged: ligado ? (s) => _mudarIntervalo(s.first) : null,
                 ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('Mostrar um aviso de exemplo'),
+                subtitle: const Text('Para ver como fica e conferir se as notificações chegam.'),
+                onTap: _exemplo,
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
