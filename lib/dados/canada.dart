@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../util/formatos.dart';
 import 'fontes.dart';
@@ -100,18 +101,29 @@ int codigoWmoCanada(int? c) => switch (c) {
     };
 
 /// Frio do vento ou humidex do ECCC, só quando o valor faz sentido para a temperatura.
-/// O ECCC às vezes repete um frio do vento antigo (ex.: −4 °C com 13 °C, em 2026-11-18).
-/// Frio do vento só existe com 10 °C ou menos e fica abaixo da temperatura; humidex só
-/// com 20 °C ou mais e fica acima dela. Fora disso, devolve null (o app calcula).
-double? sensacaoCanadaPlausivel(double? temp, double? windChill, double? humidex) {
+/// O ECCC às vezes repete um frio do vento antigo: −4 °C com 13 °C e com 9,3 °C em
+/// 2026-11-18 (e já em 2026-11-14). Frio do vento só existe com 10 °C ou menos e fica
+/// abaixo da temperatura; humidex só com 20 °C ou mais e fica acima dela. Com o vento
+/// (ou o ponto de orvalho) da mesma medição, o valor oficial também precisa ficar a até
+/// 2,5 °C da conta feita com eles. Fora disso, devolve null (o app calcula).
+double? sensacaoCanadaPlausivel(double? temp, double? windChill, double? humidex,
+    {double? ventoKmh, double? orvalho}) {
   if (temp == null) return null;
   if (windChill != null && temp <= 10 && windChill <= temp && temp - windChill <= 35) {
-    return windChill;
+    final conta = ventoKmh == null ? null : sensacaoTermica(temp, null, ventoKmh);
+    if (conta == null || (windChill - conta).abs() <= 2.5) return windChill;
   }
   if (humidex != null && temp >= 20 && humidex >= temp && humidex - temp <= 25) {
-    return humidex;
+    final conta = orvalho == null ? null : humidexCalculado(temp, orvalho);
+    if (conta == null || (humidex - conta).abs() <= 2.5) return humidex;
   }
   return null;
+}
+
+/// Humidex do Serviço Meteorológico do Canadá, com temperatura e ponto de orvalho (°C).
+double humidexCalculado(double temp, double orvalho) {
+  final e = 6.11 * math.exp(5417.7530 * (1 / 273.16 - 1 / (273.15 + orvalho)));
+  return temp + 0.5555 * (e - 10);
 }
 
 DadosCanada lerCanada(String corpo) {
@@ -139,7 +151,8 @@ DadosCanada lerCanada(String corpo) {
       rajadaKmh: _numero(vento['gust']),
       ventoDirecao: _numero(vento['bearing'])?.round(),
       sensacao: sensacaoCanadaPlausivel(
-          _numero(cc['temperature']), _numero(cc['windChill']), _numero(cc['humidex'])),
+          _numero(cc['temperature']), _numero(cc['windChill']), _numero(cc['humidex']),
+          ventoKmh: _numero(vento['speed']), orvalho: _numero(cc['dewpoint'])),
       orvalho: _numero(cc['dewpoint']),
       pressao: _numero(cc['pressure']) == null ? null : _numero(cc['pressure'])! * 10, // kPa -> hPa
       visibilidadeKm: _numero(cc['visibility']),
@@ -215,7 +228,7 @@ DadosCanada lerCanada(String corpo) {
         temperatura: tempHora,
         // Índice oficial (humidex ou frio do vento) ou, sem ele, frio do vento calculado.
         sensacao: sensacaoCanadaPlausivel(
-                tempHora, _numero(h['windChill']), _numero(h['humidex'])) ??
+                tempHora, _numero(h['windChill']), _numero(h['humidex']), ventoKmh: ventoHora) ??
             sensacaoTermica(tempHora, null, ventoHora),
         probabilidade: _numero(h['lop'])?.round(),
         codigo: codigoWmoCanada(icone),

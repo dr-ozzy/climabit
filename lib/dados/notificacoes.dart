@@ -136,6 +136,7 @@ Future<void> verificarAlertas() async {
           channelDescription: 'Alertas meteorológicos oficiais (INMET; no Canadá, ECCC) para a cidade escolhida',
           importance: Importance.high,
           priority: Priority.high,
+          icon: 'ic_notif_alerta',
         ),
       ),
     );
@@ -263,6 +264,7 @@ Future<void> verificarChuva() async {
         channelDescription: 'Aviso quando a chuva, garoa ou neve for começar nas próximas 2 horas',
         importance: Importance.high,
         priority: Priority.high,
+        icon: 'ic_notif_chuva',
       ),
     ),
   );

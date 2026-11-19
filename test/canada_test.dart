@@ -14,7 +14,9 @@ void main() {
     expect(m.umidade, 82);
     expect(m.ventoKmh, 30);
     expect(m.rajadaKmh, 41);
-    expect(m.sensacao, -4);
+    // O ECCC mandou frio do vento −4 °C com 4,9 °C e vento de 30 km/h; a conta dá 0 °C:
+    // valor antigo, descartado (o app calcula).
+    expect(m.sensacao, isNull);
     expect(m.codigo, 'YYZ');
     expect(m.latitude, closeTo(43.68, 0.01));
     expect(m.longitude, closeTo(-79.63, 0.01));
@@ -54,5 +56,8 @@ void main() {
     expect(sensacaoCanadaPlausivel(30, null, 38), 38);
     expect(sensacaoCanadaPlausivel(15, null, 22), isNull);
     expect(sensacaoCanadaPlausivel(null, -4, null), isNull);
+    expect(sensacaoCanadaPlausivel(9.3, -4, null, ventoKmh: 9), isNull);
+    expect(sensacaoCanadaPlausivel(-5, -12, null, ventoKmh: 25), -12);
+    expect(humidexCalculado(30, 22), closeTo(39.3, 0.3));
   });
 }
