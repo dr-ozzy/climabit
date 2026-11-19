@@ -550,26 +550,32 @@ class _CartaoProximasHoras extends StatelessWidget {
         if (faixa != null) Text(faixa, style: tema.textTheme.titleMedium),
         Text(chuva),
         const SizedBox(height: 12),
-        // Linha da temperatura em cima e uma coluna por hora embaixo, rolando juntas.
+        // Quadradinhos por hora com a linha da temperatura passando por dentro, no alto
+        // deles (mistura dos dois estilos que o usuário mostrou).
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            CustomPaint(
-              size: Size(lista.length * _passoHora - 6, 76),
-              painter: _PintorTemperaturas(
-                temps: [for (final h in lista) h.temperatura],
-                linha: tema.colorScheme.primary,
-                texto: tema.textTheme.titleSmall!.copyWith(
-                    color: tema.colorScheme.onSurface, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 4),
+          child: Stack(children: [
             Row(children: [
               for (var i = 0; i < lista.length; i++) ...[
                 if (i > 0) const SizedBox(width: 6),
                 _ColunaHora(hora: lista[i]),
               ],
             ]),
+            Positioned(
+              left: 0,
+              top: 0,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  size: Size(lista.length * _passoHora - 6, _alturaGrafico),
+                  painter: _PintorTemperaturas(
+                    temps: [for (final h in lista) h.temperatura],
+                    linha: tema.colorScheme.primary,
+                    texto: tema.textTheme.titleSmall!.copyWith(
+                        color: tema.colorScheme.onSurface, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
           ]),
         ),
         const SizedBox(height: 8),
@@ -587,6 +593,9 @@ class _CartaoProximasHoras extends StatelessWidget {
 /// Largura de cada hora (coluna de 62 + espaço de 6), igual no gráfico e nas colunas.
 const double _passoHora = 68;
 
+/// Altura da parte de cima de cada quadradinho, onde passa a linha da temperatura.
+const double _alturaGrafico = 88;
+
 /// Linha das temperaturas das próximas horas, com o valor sobre cada ponto.
 class _PintorTemperaturas extends CustomPainter {
   _PintorTemperaturas({required this.temps, required this.linha, required this.texto});
@@ -601,8 +610,8 @@ class _PintorTemperaturas extends CustomPainter {
     if (validos.isEmpty) return;
     final menor = validos.reduce(math.min);
     final maior = validos.reduce(math.max);
-    const topo = 24.0; // espaço para o número acima do ponto mais alto
-    const base = 8.0;
+    const topo = 30.0; // espaço para o número acima do ponto mais alto
+    const base = 10.0;
     final alturaUtil = size.height - topo - base;
     Offset? ponto(int i) {
       final t = temps[i];
@@ -639,7 +648,7 @@ class _PintorTemperaturas extends CustomPainter {
             ..shader = LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [linha.withValues(alpha: 0.28), linha.withValues(alpha: 0.02)],
+              colors: [linha.withValues(alpha: 0.28), linha.withValues(alpha: 0.0)],
             ).createShader(Offset.zero & size));
     }
     canvas.drawPath(
@@ -683,13 +692,16 @@ class _ColunaHora extends StatelessWidget {
     final uv = hora.uv;
     return Container(
       width: _passoHora - 6,
-      height: 132,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      height: _alturaGrafico + 124,
+      padding: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(12)),
-      // A temperatura fica no gráfico em cima; aqui, hora, céu, sensação, chuva e UV.
+      // No alto, a linha da temperatura (desenhada por cima); embaixo, céu, hora,
+      // sensação, chuva e UV.
       child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('${hora.hora.hour}h', style: tema.textTheme.labelMedium?.copyWith(color: texto)),
-        simboloCodigoWmo(hora.codigo, hora.dia ?? true, size: 24, color: texto),
+        const SizedBox(height: _alturaGrafico),
+        simboloCodigoWmo(hora.codigo, hora.dia ?? true, size: 26, color: texto),
+        Text('${hora.hora.hour}h',
+            style: tema.textTheme.labelLarge?.copyWith(color: texto, fontWeight: FontWeight.w600)),
         // Sensação térmica da hora (importante no frio do Canadá e no calor do Rio).
         Text(hora.sensacao == null ? '' : 'sens. ${inteiro(hora.sensacao)}°',
             style: tema.textTheme.labelSmall?.copyWith(color: texto.withValues(alpha: 0.85))),
