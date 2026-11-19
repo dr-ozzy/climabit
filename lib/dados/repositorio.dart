@@ -87,6 +87,10 @@ class Repositorio extends ChangeNotifier {
   /// ou quando a medição do aeroporto é mais recente. Nulo = usar o do INMET.
   VentoAeroporto? ventoAeroporto;
 
+  /// Aeroporto mais próximo (até 40 km, boletim de até 3 h) com as nuvens observadas,
+  /// usado para o desenho do céu de agora.
+  VentoAeroporto? ceuAeroporto;
+
   /// Estação do INMET guardada como reserva quando uma estação local (UNIFEI) é usada.
   Medicao? medicaoReserva;
 
@@ -116,6 +120,7 @@ class Repositorio extends ChangeNotifier {
     boletimObtidoEm = null;
     sirenes = [];
     ventoAeroporto = null;
+    ceuAeroporto = null;
     medicaoReserva = null;
     estimativaAtual = null;
     ventoEstimado = null;
@@ -226,12 +231,9 @@ class Repositorio extends ChangeNotifier {
       medicaoReserva = medicao;
       medicao = local;
     }
-    ventoAeroporto = escolherVentoAeroporto(
-      _ler('Aeroportos (vento)', resultados[9], lerVentoAeroportos) ?? [],
-      medicao,
-      c,
-      DateTime.now(),
-    );
+    final aeroportos = _ler('Aeroportos (vento)', resultados[9], lerVentoAeroportos) ?? [];
+    ventoAeroporto = escolherVentoAeroporto(aeroportos, medicao, c, DateTime.now());
+    ceuAeroporto = escolherCeuAeroporto(aeroportos, c, DateTime.now());
 
     // Sem estação do INMET perto e recente: usa a medição oficial do aeroporto (Aeronáutica,
     // DECEA) a até 30 km, antes de cair na estimativa por modelo.
@@ -304,6 +306,7 @@ class Repositorio extends ChangeNotifier {
     medicao = m;
     medicaoReserva = null;
     ventoAeroporto = null;
+    ceuAeroporto = null;
     previsao = d?.dias ?? [];
     chuvaHoraria = d?.horas ?? [];
     horasOficiais = chuvaHoraria.isNotEmpty;
@@ -512,6 +515,22 @@ VentoAeroporto? escolherVentoAeroporto(
   if (melhor == null) return null;
   if (inmet?.ventoKmh == null) return melhor;
   return melhor.hora.isAfter(inmet!.hora.add(const Duration(minutes: 30))) ? melhor : null;
+}
+
+/// Aeroporto mais próximo (até 40 km) com nuvens informadas no boletim das últimas 3 horas.
+VentoAeroporto? escolherCeuAeroporto(List<VentoAeroporto> lista, Cidade c, DateTime agora) {
+  if (c.latitude == null || c.longitude == null) return null;
+  VentoAeroporto? melhor;
+  var menor = double.infinity;
+  for (final v in lista) {
+    if (v.cobertura == null) continue;
+    if (agora.difference(v.hora) > const Duration(hours: 3)) continue;
+    final d = v.distanciaKm(c.latitude!, c.longitude!);
+    if (d > 40 || d >= menor) continue;
+    menor = d;
+    melhor = v;
+  }
+  return melhor;
 }
 
 /// Medição oficial que representa a cidade: com temperatura, estação a até 50 km

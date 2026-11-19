@@ -764,7 +764,16 @@ class VentoAeroporto {
     this.orvalho,
     this.visibilidadeKm,
     this.pressao,
+    this.cobertura,
+    this.tempoPresente = '',
   });
+
+  /// Nuvens observadas (maior cobertura do boletim): 0 = céu limpo, 1 = poucas (FEW),
+  /// 2 = esparsas (SCT), 3 = muitas (BKN), 4 = encoberto (OVC). Nulo sem informação.
+  final int? cobertura;
+
+  /// Tempo presente do boletim, em código METAR ("-RA", "TSRA", "VCSH"...).
+  final String tempoPresente;
 
   /// Visibilidade (km) e pressão ajustada ao nível do mar (hPa) do boletim.
   final double? visibilidadeKm;
@@ -800,6 +809,27 @@ class VentoAeroporto {
 }
 
 const _noParaKmh = 1.852;
+
+/// Cobertura de nuvens do METAR (campo "cover" ou a maior das camadas em "clouds"):
+/// 0 limpo, 1 FEW, 2 SCT, 3 BKN, 4 OVC. Nulo sem informação.
+int? coberturaMetar(Object? cover, Object? camadas) {
+  int? nivel(Object? c) => switch (_texto(c).toUpperCase()) {
+        'SKC' || 'CLR' || 'NSC' || 'NCD' || 'CAVOK' => 0,
+        'FEW' => 1,
+        'SCT' => 2,
+        'BKN' => 3,
+        'OVC' || 'OVX' || 'VV' => 4,
+        _ => null,
+      };
+  var r = nivel(cover);
+  if (camadas is List) {
+    for (final c in camadas.whereType<Map<String, dynamic>>()) {
+      final n = nivel(c['cover']);
+      if (n != null && (r == null || n > r)) r = n;
+    }
+  }
+  return r;
+}
 
 /// Visibilidade do METAR em milhas terrestres ("10+" = 10 ou mais) convertida para km.
 double? visibilidadeMetarKm(Object? v) {
@@ -840,6 +870,8 @@ List<VentoAeroporto> lerVentoAeroportos(String corpo) {
       orvalho: _num(m['dewp'])?.toDouble(),
       visibilidadeKm: visibilidadeMetarKm(m['visib']),
       pressao: _num(m['altim'])?.toDouble(),
+      cobertura: coberturaMetar(m['cover'], m['clouds']),
+      tempoPresente: _texto(m['wxString']),
     ));
   }
   return r;

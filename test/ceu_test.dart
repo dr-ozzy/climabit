@@ -92,4 +92,32 @@ void main() {
     expect(p(e: EstadoCeu.limpo), Paisagem.campo);
     expect(p(e: EstadoCeu.nublado), Paisagem.morros);
   });
+
+  test('céu pelas nuvens do aeroporto, não pelo texto da previsão do período', () {
+    const texto = 'Muitas nuvens com pancadas de chuva e trovoadas isoladas';
+    // Antes: sempre nublado com esse texto, mesmo com sol.
+    expect(estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0), EstadoCeu.nublado);
+    expect(estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, coberturaAeroporto: 1),
+        EstadoCeu.limpo);
+    expect(estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, coberturaAeroporto: 2),
+        EstadoCeu.parcial);
+    expect(estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, coberturaAeroporto: 4),
+        EstadoCeu.nublado);
+    expect(estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, codigoModelo: 1), EstadoCeu.limpo);
+    expect(
+        estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, coberturaAeroporto: 3,
+            tempoAeroporto: '-TSRA'),
+        EstadoCeu.trovoada);
+    expect(
+        estadoCeu(resumoPeriodo: texto, chuvaUltimaHora: 0, coberturaAeroporto: 1,
+            tempoAeroporto: 'VCSH'),
+        EstadoCeu.limpo);
+  });
+
+  test('cobertura de nuvens do METAR', () {
+    expect(coberturaMetar('SCT', [{'cover': 'FEW'}, {'cover': 'SCT'}]), 2);
+    expect(coberturaMetar(null, [{'cover': 'FEW'}, {'cover': 'BKN'}]), 3);
+    expect(coberturaMetar('CAVOK', null), 0);
+    expect(coberturaMetar(null, null), isNull);
+  });
 }

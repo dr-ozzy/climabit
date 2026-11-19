@@ -46,7 +46,10 @@ class TelaAgora extends StatelessWidget {
             : estadoCeu(
                 resumoPeriodo: resumoAgora,
                 chuvaUltimaHora: m.chuva1h,
-                observado: hoje?.periodos.any((p) => p.nome == 'Agora') ?? false);
+                observado: hoje?.periodos.any((p) => p.nome == 'Agora') ?? false,
+                coberturaAeroporto: repo.ceuAeroporto?.cobertura,
+                tempoAeroporto: repo.ceuAeroporto?.tempoPresente ?? '',
+                codigoModelo: repo.horasOficiais ? null : codigoDaHora(repo.chuvaHoraria, agora));
     final sensacaoAgora =
         m == null ? null : m.sensacao ?? sensacaoTermica(m.temperatura, m.umidade, ventoKmh);
     final topo = m == null || ceuAgora == null

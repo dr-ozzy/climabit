@@ -11,20 +11,54 @@ import '../dados/fontes.dart';
 /// Como está o céu agora, para escolher o fundo do topo da tela inicial.
 enum EstadoCeu { limpo, parcial, nublado, chuva, trovoada }
 
-/// Céu de agora: chuva pela medição da última hora; nuvens pelo texto da previsão do
-/// período atual (manhã, tarde ou noite).
+/// Céu de agora. Chuva: medição da última hora ou tempo presente do aeroporto.
+/// Nuvens, nesta ordem: nuvens observadas no aeroporto mais próximo (METAR), código do
+/// modelo para a hora atual (Open-Meteo) e, por último, o texto da previsão do período.
+/// O texto da previsão do INMET fala do período inteiro ("muitas nuvens com pancadas")
+/// e deixava o céu cinzento em dia de sol; por isso fica só como reserva.
 ///
 /// [observado]: o resumo é a condição observada agora (Canadá), não uma previsão; então
-/// "chuva" no texto quer dizer que está chovendo.
-EstadoCeu estadoCeu(
-    {required String? resumoPeriodo, required double? chuvaUltimaHora, bool observado = false}) {
+/// "chuva" no texto quer dizer que está chovendo, e o texto vale mais que o resto.
+EstadoCeu estadoCeu({
+  required String? resumoPeriodo,
+  required double? chuvaUltimaHora,
+  bool observado = false,
+  int? coberturaAeroporto,
+  String tempoAeroporto = '',
+  int? codigoModelo,
+}) {
   final r = (resumoPeriodo ?? '').toLowerCase();
+  // Tempo presente do METAR: chuva, garoa, pancada ou trovoada no aeroporto (não "VC",
+  // que é nas vizinhanças).
+  final wx = tempoAeroporto.toUpperCase().split(' ').where((t) => !t.startsWith('VC'));
+  final trovoadaAeroporto = wx.any((t) => t.contains('TS'));
+  final chuvaAeroporto =
+      wx.any((t) => t.contains('RA') || t.contains('DZ') || t.contains('SH')) || trovoadaAeroporto;
   final chovendo = (chuvaUltimaHora ?? 0) >= 0.2 ||
+      chuvaAeroporto ||
       (observado &&
           (r.contains('chuv') || r.contains('garoa') || r.contains('pancada') ||
               r.contains('trovo')));
   if (chovendo) {
-    return r.contains('trovo') || r.contains('tempest') ? EstadoCeu.trovoada : EstadoCeu.chuva;
+    return trovoadaAeroporto || r.contains('trovo') || r.contains('tempest')
+        ? EstadoCeu.trovoada
+        : EstadoCeu.chuva;
+  }
+  if (!observado) {
+    if (coberturaAeroporto != null) {
+      return switch (coberturaAeroporto) {
+        <= 1 => EstadoCeu.limpo,
+        2 => EstadoCeu.parcial,
+        _ => EstadoCeu.nublado,
+      };
+    }
+    if (codigoModelo != null) {
+      return switch (codigoModelo) {
+        0 || 1 => EstadoCeu.limpo,
+        2 => EstadoCeu.parcial,
+        _ => EstadoCeu.nublado,
+      };
+    }
   }
   if (r.contains('encoberto') || r.contains('muitas nuvens') ||
       (r.contains('nublado') && !r.contains('parcial'))) {
@@ -32,6 +66,16 @@ EstadoCeu estadoCeu(
   }
   if (r.contains('claro') || (r.contains('sol') && !r.contains('nuve'))) return EstadoCeu.limpo;
   return EstadoCeu.parcial;
+}
+
+/// Código do modelo (WMO) para a hora atual na previsão de hora em hora, ou nulo.
+int? codigoDaHora(List<HoraChuva> horas, DateTime agora) {
+  for (final h in horas) {
+    if (!h.hora.isAfter(agora) && agora.difference(h.hora) < const Duration(hours: 1)) {
+      return h.codigo;
+    }
+  }
+  return null;
 }
 
 String nomeCeu(EstadoCeu e, bool noite) => switch (e) {

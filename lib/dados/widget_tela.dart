@@ -108,7 +108,10 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
       estadoCeu(
           resumoPeriodo: resumoDoPeriodo(hoje, agora),
           chuvaUltimaHora: m.chuva1h,
-          observado: hoje?.periodos.any((p) => p.nome == 'Agora') ?? false);
+          observado: hoje?.periodos.any((p) => p.nome == 'Agora') ?? false,
+          coberturaAeroporto: repo.ceuAeroporto?.cobertura,
+          tempoAeroporto: repo.ceuAeroporto?.tempoPresente ?? '',
+          codigoModelo: repo.horasOficiais ? null : codigoDaHora(repo.chuvaHoraria, agora));
   final litoral = repo.ondas.isNotEmpty || EstacaoMare.proxima(lat, lon) != null;
   final tarde = !noite &&
       alt != null &&
