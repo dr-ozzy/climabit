@@ -49,8 +49,9 @@ class DadosWidget {
   /// "sensação 26°" (barra 4 × 1).
   final String sensacao;
 
-  /// Até 3 horas do dia para a barra 4 × 1: ("15h", "26°", "sens. 28°").
-  final List<(String, String, String)> horas;
+  /// Até 3 horas do dia para a barra 4 × 1: ("15h", "26°", "sens. 28°", "chuva"), com o
+  /// nome do ícone do céu (drawable `ic_tempo_<nome>`).
+  final List<(String, String, String, String)> horas;
 
   final String temperatura;
   final String ceu;
@@ -87,6 +88,7 @@ class DadosWidget {
           'h${i + 1}_hora': i < horas.length ? horas[i].$1 : '',
           'h${i + 1}_temp': i < horas.length ? horas[i].$2 : '',
           'h${i + 1}_sens': i < horas.length ? horas[i].$3 : '',
+          'h${i + 1}_icone': i < horas.length ? horas[i].$4 : '',
         },
       };
 }
@@ -178,6 +180,7 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
           '${h.hora.hour}h',
           '${h.temperatura!.round()}°',
           'sens. ${(h.sensacao ?? h.temperatura!).round()}°',
+          iconeWmo(h.codigo, h.dia ?? (h.hora.hour >= 6 && h.hora.hour < 18)),
         ),
     ],
   );
@@ -190,6 +193,15 @@ String resumoAlerta(Alerta a, int total, DateTime agora) {
   final nome = d.isEmpty ? 'Alerta' : '${d[0].toUpperCase()}${d.substring(1)}';
   return '$nome até ${quando(a.fim, agora: agora)}${total > 1 ? ' (+${total - 1})' : ''}';
 }
+
+/// Nome do ícone colorido do céu (drawable `ic_tempo_<nome>`) para um código WMO.
+String iconeWmo(int? codigo, bool dia) => switch (codigo ?? 2) {
+      0 || 1 => dia ? 'sol' : 'lua',
+      2 => dia ? 'parcial_dia' : 'parcial_noite',
+      >= 95 => 'trovoada',
+      (>= 51 && <= 67) || (>= 80 && <= 82) || (>= 71 && <= 77) || 85 || 86 => 'chuva',
+      _ => 'nublado',
+    };
 
 /// 3 horas à frente, de 3 em 3 horas (15h, 18h, 21h...), com temperatura prevista.
 List<HoraChuva> horasDoDia(List<HoraChuva> horas, DateTime agora) => horas

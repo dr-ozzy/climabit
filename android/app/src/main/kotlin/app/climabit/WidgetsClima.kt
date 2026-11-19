@@ -72,6 +72,22 @@ private fun preencher(
                 R.id.icone, if (icone != 0) icone else R.drawable.ic_tempo_parcial_dia)
         }
 
+        // Ícone colorido do céu em cada hora da barra.
+        if (R.id.h1_icone in campos) {
+            for ((campo, chave) in listOf(R.id.h1_icone to "h1_icone",
+                    R.id.h2_icone to "h2_icone", R.id.h3_icone to "h3_icone")) {
+                val nome = dados.getString(chave, "") ?: ""
+                val img = if (nome.isEmpty()) 0 else context.resources.getIdentifier(
+                    "ic_tempo_$nome", "drawable", context.packageName)
+                if (img == 0) {
+                    v.setViewVisibility(campo, View.GONE)
+                } else {
+                    v.setViewVisibility(campo, View.VISIBLE)
+                    v.setImageViewResource(campo, img)
+                }
+            }
+        }
+
         // Barra estreita (3 colunas da tela inicial): mostra só 2 horas, para os textos caberem.
         if (R.id.h3_coluna in campos) {
             val largura = gerenciador.getAppWidgetOptions(id)
@@ -165,6 +181,7 @@ private val camposBarra = setOf(
     R.id.h1_hora, R.id.h1_temp, R.id.h1_sens,
     R.id.h2_hora, R.id.h2_temp, R.id.h2_sens,
     R.id.h3_hora, R.id.h3_temp, R.id.h3_sens, R.id.h3_coluna,
+    R.id.h1_icone, R.id.h2_icone, R.id.h3_icone,
 )
 
 /** Barra 4 × 1: redesenha quando a pessoa muda o tamanho do widget. */
