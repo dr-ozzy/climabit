@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -80,6 +81,15 @@ private fun preencher(
             if (estreita) {
                 textoOpcional(v, R.id.sensacao,
                     dados.getString("sensacao", "")?.replace("sensação", "sens."))
+                // Letras um pouco menores para as 2 horas caberem (a barra larga usa o layout).
+                for (campo in listOf(R.id.h1_sens, R.id.h2_sens)) {
+                    v.setTextViewTextSize(campo, TypedValue.COMPLEX_UNIT_SP, 10f)
+                }
+                for (campo in listOf(R.id.h1_temp, R.id.h2_temp)) {
+                    v.setTextViewTextSize(campo, TypedValue.COMPLEX_UNIT_SP, 18f)
+                }
+                v.setTextViewTextSize(R.id.sensacao, TypedValue.COMPLEX_UNIT_SP, 12f)
+                v.setTextViewTextSize(R.id.cidade, TypedValue.COMPLEX_UNIT_SP, 13f)
             }
         }
 

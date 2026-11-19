@@ -15,37 +15,37 @@
         android:layout_weight="1"
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="14dp" android:paddingEnd="10dp">
-        <TextView android:id="@+id/temperatura" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+        <TextView android:id="@+id/temperatura" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="38sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
             android:text="25°" />
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1.1" android:layout_marginStart="8dp" android:orientation="vertical">
-            <TextView android:id="@+id/cidade" android:text="Cidade" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/cidade" android:text="Cidade" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:ellipsize="end" />
-            <TextView android:id="@+id/sensacao" android:text="sensação 26°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/sensacao" android:text="sensação 26°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="2dp" />
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-            <TextView android:id="@+id/h1_hora" android:text="15h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
-            <TextView android:id="@+id/h1_temp" android:text="26°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h1_hora" android:text="15h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
+            <TextView android:id="@+id/h1_temp" android:text="26°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="21sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
-            <TextView android:id="@+id/h1_sens" android:text="sens. 28°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h1_sens" android:text="sens. 28°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-            <TextView android:id="@+id/h2_hora" android:text="18h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
-            <TextView android:id="@+id/h2_temp" android:text="24°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h2_hora" android:text="18h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
+            <TextView android:id="@+id/h2_temp" android:text="24°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="21sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
-            <TextView android:id="@+id/h2_sens" android:text="sens. 25°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h2_sens" android:text="sens. 25°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
         </LinearLayout>
         <LinearLayout android:id="@+id/h3_coluna" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-            <TextView android:id="@+id/h3_hora" android:text="21h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
-            <TextView android:id="@+id/h3_temp" android:text="22°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h3_hora" android:text="21h" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#E6FFFFFF" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3" />
+            <TextView android:id="@+id/h3_temp" android:text="22°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="21sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
-            <TextView android:id="@+id/h3_sens" android:text="sens. 22°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="10sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
+            <TextView android:id="@+id/h3_sens" android:text="sens. 22°" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#D9FFFFFF" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:includeFontPadding="false" android:shadowColor="#E60B1220" android:shadowDx="1.5" android:shadowDy="1.5" android:shadowRadius="3"
                 android:layout_marginTop="1dp" />
         </LinearLayout>
     </LinearLayout>
@@ -55,7 +55,7 @@
         android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="1dp"
         android:paddingBottom="2dp" android:visibility="gone">
         <TextView android:id="@+id/alerta_texto" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:textSize="10sp"
+            android:layout_height="wrap_content" android:textSize="12sp"
             android:textStyle="bold" android:maxLines="1" android:ellipsize="end"
             android:includeFontPadding="false" />
     </LinearLayout>
