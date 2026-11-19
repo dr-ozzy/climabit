@@ -547,25 +547,120 @@ class _CartaoProximasHoras extends StatelessWidget {
         if (faixa != null) Text(faixa, style: tema.textTheme.titleMedium),
         Text(chuva),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 176,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: lista.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 6),
-            itemBuilder: (context, i) => _ColunaHora(hora: lista[i]),
-          ),
+        // Linha da temperatura em cima e uma coluna por hora embaixo, rolando juntas.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            CustomPaint(
+              size: Size(lista.length * _passoHora - 6, 76),
+              painter: _PintorTemperaturas(
+                temps: [for (final h in lista) h.temperatura],
+                linha: tema.colorScheme.primary,
+                texto: tema.textTheme.titleSmall!.copyWith(
+                    color: tema.colorScheme.onSurface, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(children: [
+              for (var i = 0; i < lista.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                _ColunaHora(hora: lista[i]),
+              ],
+            ]),
+          ]),
         ),
         const SizedBox(height: 8),
         if (oficial)
           const Fonte('previsão por hora do Environment and Climate Change Canada '
               '(serviço meteorológico oficial do Canadá)')
         else
-          const Fonte('Open-Meteo (modelo, open-meteo.com): temperatura, sensação térmica, chance de chuva e '
+          const Fonte('Open-Meteo (modelo, open-meteo.com): temperatura (gráfico), sensação térmica, chance de chuva e '
               'índice UV de hora em hora. Estimativa: não é previsão oficial.'),
       ],
     );
   }
+}
+
+/// Largura de cada hora (coluna de 62 + espaço de 6), igual no gráfico e nas colunas.
+const double _passoHora = 68;
+
+/// Linha das temperaturas das próximas horas, com o valor sobre cada ponto.
+class _PintorTemperaturas extends CustomPainter {
+  _PintorTemperaturas({required this.temps, required this.linha, required this.texto});
+
+  final List<double?> temps;
+  final Color linha;
+  final TextStyle texto;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final validos = temps.whereType<double>().toList();
+    if (validos.isEmpty) return;
+    final menor = validos.reduce(math.min);
+    final maior = validos.reduce(math.max);
+    const topo = 24.0; // espaço para o número acima do ponto mais alto
+    const base = 8.0;
+    final alturaUtil = size.height - topo - base;
+    Offset? ponto(int i) {
+      final t = temps[i];
+      if (t == null) return null;
+      final frac = maior == menor ? 0.5 : (t - menor) / (maior - menor);
+      return Offset(i * _passoHora + (_passoHora - 6) / 2, topo + (1 - frac) * alturaUtil);
+    }
+
+    final pontos = [for (var i = 0; i < temps.length; i++) ponto(i)];
+    final caminho = Path();
+    final area = Path();
+    Offset? primeiro;
+    Offset? ultimo;
+    for (final p in pontos) {
+      if (p == null) continue;
+      if (primeiro == null) {
+        caminho.moveTo(p.dx, p.dy);
+        area.moveTo(p.dx, size.height);
+        area.lineTo(p.dx, p.dy);
+        primeiro = p;
+      } else {
+        caminho.lineTo(p.dx, p.dy);
+        area.lineTo(p.dx, p.dy);
+      }
+      ultimo = p;
+    }
+    if (primeiro != null && ultimo != null) {
+      area
+        ..lineTo(ultimo.dx, size.height)
+        ..close();
+      canvas.drawPath(
+          area,
+          Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [linha.withValues(alpha: 0.28), linha.withValues(alpha: 0.02)],
+            ).createShader(Offset.zero & size));
+    }
+    canvas.drawPath(
+        caminho,
+        Paint()
+          ..color = linha
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeJoin = StrokeJoin.round);
+    for (var i = 0; i < pontos.length; i++) {
+      final p = pontos[i];
+      if (p == null) continue;
+      canvas.drawCircle(p, 3.5, Paint()..color = linha);
+      final tp = TextPainter(
+        text: TextSpan(text: '${temps[i]!.round()}°', style: texto),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(p.dx - tp.width / 2, p.dy - tp.height - 4));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PintorTemperaturas antigo) =>
+      antigo.temps != temps || antigo.linha != linha || antigo.texto != texto;
 }
 
 class _ColunaHora extends StatelessWidget {
@@ -584,14 +679,14 @@ class _ColunaHora extends StatelessWidget {
     final texto = destaque ? tema.colorScheme.onTertiaryContainer : tema.colorScheme.onSurface;
     final uv = hora.uv;
     return Container(
-      width: 62,
+      width: _passoHora - 6,
+      height: 132,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(12)),
+      // A temperatura fica no gráfico em cima; aqui, hora, céu, sensação, chuva e UV.
       child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text('${hora.hora.hour}h', style: tema.textTheme.labelMedium?.copyWith(color: texto)),
         simboloCodigoWmo(hora.codigo, hora.dia ?? true, size: 24, color: texto),
-        Text(hora.temperatura == null ? '–' : '${inteiro(hora.temperatura)}°',
-            style: tema.textTheme.titleMedium?.copyWith(color: texto, fontWeight: FontWeight.w600)),
         // Sensação térmica da hora (importante no frio do Canadá e no calor do Rio).
         Text(hora.sensacao == null ? '' : 'sens. ${inteiro(hora.sensacao)}°',
             style: tema.textTheme.labelSmall?.copyWith(color: texto.withValues(alpha: 0.85))),
