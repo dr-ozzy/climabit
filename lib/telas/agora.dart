@@ -544,7 +544,8 @@ class _CartaoProximasHoras extends StatelessWidget {
           'a ${inteiro(quente.temperatura)}° (${quente.hora.hour}h)';
     }
     return Cartao(
-      titulo: oficial ? 'Próximas 24 horas' : 'Próximas 24 horas (estimativa)',
+      // No Brasil a previsão por hora é estimativa de modelo; o aviso fica em Fontes.
+      titulo: 'Próximas 24 horas',
       icone: Icons.schedule,
       children: [
         if (faixa != null) Text(faixa, style: tema.textTheme.titleMedium),
