@@ -125,8 +125,11 @@ Paisagem escolherPaisagem({
   required String? resumo,
 }) {
   if (estaNevando(resumo)) return Paisagem.neve;
-  final calor = sensacao ?? temperatura;
-  if (calor != null && calor >= 35 && estado != EstadoCeu.chuva && estado != EstadoCeu.trovoada) {
+  // Vulcão só no calor extremo: temperatura ou sensação acima de 39 °C (pedido do usuário;
+  // com 35 °C ele aparecia demais no verão do Rio).
+  final calor = [temperatura, sensacao].whereType<double>().fold<double?>(
+      null, (m, v) => m == null || v > m ? v : m);
+  if (calor != null && calor > 39 && estado != EstadoCeu.chuva && estado != EstadoCeu.trovoada) {
     return Paisagem.vulcao;
   }
   if ((chuvaUltimaHora ?? 0) >= 5 || estado == EstadoCeu.trovoada) return Paisagem.cachoeiras;

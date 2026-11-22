@@ -85,7 +85,10 @@ void main() {
     expect(p(r: 'Chance de neve'), isNot(Paisagem.neve));
     expect(p(t: -2, r: 'Neve fraca'), Paisagem.neve);
     expect(p(t: 1, e: EstadoCeu.chuva, r: 'Chuva e neve'), Paisagem.neve);
-    expect(p(t: 33, s: 38), Paisagem.vulcao);
+    expect(p(t: 35.3, s: 36, e: EstadoCeu.limpo), Paisagem.campo);
+    expect(p(t: 39, s: 39), isNot(Paisagem.vulcao));
+    expect(p(t: 36, s: 41), Paisagem.vulcao);
+    expect(p(t: 40, s: 38), Paisagem.vulcao);
     expect(p(e: EstadoCeu.chuva, chuva: 12), Paisagem.cachoeiras);
     expect(p(e: EstadoCeu.trovoada, chuva: 1), Paisagem.cachoeiras);
     expect(p(e: EstadoCeu.chuva, chuva: 1), Paisagem.morros);
