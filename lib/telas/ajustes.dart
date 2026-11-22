@@ -306,7 +306,10 @@ class _TelaAjustesState extends State<TelaAjustes> {
                   'Defesa Civil de Niterói, UNIFEI (em Itajubá) e o serviço de dados de aeroportos da NOAA '
                   '(governo dos EUA, aviationweather.gov). Consulta também o Open-Meteo '
                   '(open-meteo.com, serviço de código aberto) para a chuva de hora em hora, '
-                  'o aviso de chuva chegando e quando falta um dado oficial.'),
+                  'o aviso de chuva chegando, o mapa de vento e quando falta um dado oficial; a '
+                  'Organização Meteorológica Mundial (cópia dos alertas do INMET, só quando o INMET '
+                  'não responde); o RainViewer (radar para cidades fora do Rio); e o ViaCEP, só '
+                  'quando você busca uma cidade pelo CEP.'),
               paragrafo('• A sua localização não sai do celular: o app descobre o município '
                   'com a lista do IBGE guardada nele e envia às fontes só o código ou o ponto da sede '
                   'do município, que são os mesmos para todos os moradores.'),
@@ -321,7 +324,12 @@ class _TelaAjustesState extends State<TelaAjustes> {
                   'do INMET não tem o dado.'),
               paragrafo('• UNIFEI (Universidade Federal de Itajubá): estação meteorológica do campus, '
                   'usada na medição atual de Itajubá.'),
-              paragrafo('• IBGE: lista de municípios e contornos do mapa.'),
+              paragrafo('• IBGE: lista de municípios, mesorregiões e contornos do mapa.'),
+              paragrafo('• OMM (Organização Meteorológica Mundial): cópia pública dos alertas do '
+                  'INMET, usada como reserva.'),
+              paragrafo('• RainViewer (rainviewer.com): mosaico de radares para cidades sem radar '
+                  'oficial no app; não é fonte oficial brasileira.'),
+              paragrafo('• ViaCEP (viacep.com.br): município a partir do CEP.'),
               paragrafo('• Marinha do Brasil (Centro de Hidrografia da Marinha): Tábua das Marés 2025 '
                   'da Ilha Fiscal e do Porto do Forno, usada para calcular a maré no próprio celular, '
                   'sem internet.'),
