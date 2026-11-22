@@ -147,7 +147,9 @@ class _MapaVentoState extends State<MapaVento> {
                 else
                   ColoredBox(color: terra),
                 if (grade != null)
-                  CustomPaint(painter: _PintorFundo(grade, _hora)),
+                  CustomPaint(
+                    painter: _PintorFundo(grade, _hora, escuro: escuro),
+                  ),
                 if (grade != null)
                   _LinhasVento(
                     grade: grade,
@@ -487,9 +489,11 @@ const _escalaChuva = <(double, Color)>[
 /// Nuvem cheia (100 %): branco translúcido.
 const _nuvemCheia = Color(0x5CFFFFFF);
 
-Color corChuvaNuvem(double mm, double nuvens) {
+/// No tema escuro o branco pesa mais: as nuvens ficam mais transparentes.
+Color corChuvaNuvem(double mm, double nuvens, {bool escuro = false}) {
   if (mm < _escalaChuva.first.$1) {
-    final a = (nuvens.clamp(0, 100) / 100) * _nuvemCheia.a;
+    final a =
+        (nuvens.clamp(0, 100) / 100) * _nuvemCheia.a * (escuro ? 0.55 : 1);
     return _nuvemCheia.withValues(alpha: a);
   }
   for (var i = 1; i < _escalaChuva.length; i++) {
@@ -505,10 +509,11 @@ Color corChuvaNuvem(double mm, double nuvens) {
 /// Fundo de chuva e nuvens: triângulos entre os pontos da grade, com as cores misturadas
 /// pela placa de vídeo (transição suave, sem gerar imagem).
 class _PintorFundo extends CustomPainter {
-  _PintorFundo(this.grade, this.hora);
+  _PintorFundo(this.grade, this.hora, {required this.escuro});
 
   final GradeVento grade;
   final double hora;
+  final bool escuro;
 
   @override
   void paint(Canvas canvas, Size s) {
@@ -529,7 +534,7 @@ class _PintorFundo extends CustomPainter {
         pos[i * 2 + 1] = y * s.height;
         final mm = g.chuva[h0][i] + (g.chuva[h1][i] - g.chuva[h0][i]) * f;
         final nv = g.nuvens[h0][i] + (g.nuvens[h1][i] - g.nuvens[h0][i]) * f;
-        cores[i] = corChuvaNuvem(mm, nv).toARGB32();
+        cores[i] = corChuvaNuvem(mm, nv, escuro: escuro).toARGB32();
       }
     }
     final indices = Uint16List((nc - 1) * (nl - 1) * 6);
@@ -558,7 +563,7 @@ class _PintorFundo extends CustomPainter {
 
   @override
   bool shouldRepaint(_PintorFundo old) =>
-      old.grade != grade || old.hora != hora;
+      old.grade != grade || old.hora != hora || old.escuro != escuro;
 }
 
 class _LegendaChuva extends StatelessWidget {
