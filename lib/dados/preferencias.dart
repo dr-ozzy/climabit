@@ -19,6 +19,10 @@ class Preferencias {
   static const _cidadeAvisos = 'cidade_avisos';
   static const _intervalo = 'avisos_intervalo_min';
   static const _avisoChuva = 'aviso_chuva';
+  static const _nivelAlerta = 'nivel_minimo_alerta';
+  static const _silencioIni = 'silencio_inicio';
+  static const _silencioFim = 'silencio_fim';
+  static const _chuvaModerada = 'chuva_so_moderada';
 
   List<Cidade> get cidadesSalvas {
     final s = _p.getString(_salvas);
@@ -58,6 +62,30 @@ class Preferencias {
 
   Future<void> definirCidadeDosAvisos(Cidade c) =>
       _p.setString(_cidadeAvisos, jsonEncode(c.toJson()));
+
+  /// Alertas que geram aviso: 0 = todos, 1 = laranja e vermelho, 2 = só vermelho.
+  int get nivelMinimoAlerta => _p.getInt(_nivelAlerta) ?? 0;
+  Future<void> definirNivelMinimoAlerta(int n) => _p.setInt(_nivelAlerta, n);
+
+  /// Horário de silêncio (horas inteiras); nulo = desligado.
+  (int, int)? get silencio {
+    final i = _p.getInt(_silencioIni), f = _p.getInt(_silencioFim);
+    return i == null || f == null ? null : (i, f);
+  }
+
+  Future<void> definirSilencio((int, int)? s) async {
+    if (s == null) {
+      await _p.remove(_silencioIni);
+      await _p.remove(_silencioFim);
+    } else {
+      await _p.setInt(_silencioIni, s.$1);
+      await _p.setInt(_silencioFim, s.$2);
+    }
+  }
+
+  /// Avisar de chuva só quando for moderada ou forte (não garoa nem chuva fraca).
+  bool get chuvaSoModerada => _p.getBool(_chuvaModerada) ?? false;
+  Future<void> definirChuvaSoModerada(bool v) => _p.setBool(_chuvaModerada, v);
 
   /// De quanto em quanto tempo conferir os alertas (minutos).
   int get intervaloMin => _p.getInt(_intervalo) ?? 60;

@@ -2,6 +2,7 @@ package app.climabit
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
@@ -9,6 +10,7 @@ import android.os.Build
 import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -31,6 +33,20 @@ class MainActivity : FlutterActivity() {
                 }
             }
         Atualizacao.registrar(flutterEngine.dartExecutor.binaryMessenger, this)
+        // Abre a tela do app nas configurações do Android (bateria, notificações).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "tempo_oficial/sistema")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "abrirDetalhesDoApp" -> {
+                        val i = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.fromParts("package", packageName, null),
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        result.success(runCatching { startActivity(i) }.isSuccess)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     private fun temPermissao() =

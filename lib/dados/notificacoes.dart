@@ -119,8 +119,18 @@ Future<void> verificarAlertas() async {
 
   final sp = await SharedPreferences.getInstance();
   final vistos = sp.getStringList(_vistos)?.toSet() ?? {};
-  final novos = alertas.where((a) => !vistos.contains(a.id)).toList();
-
+  // Abaixo do nível escolhido: conta como visto, sem avisar. No horário de silêncio só o
+  // vermelho avisa; os outros ficam para depois (não entram em "vistos").
+  final quieto = emSilencio(prefs.silencio, agora);
+  final novos = <Alerta>[];
+  for (final a in alertas.where((a) => !vistos.contains(a.id))) {
+    final nivel = nivelDoAlerta(a);
+    if (nivel < prefs.nivelMinimoAlerta) {
+      vistos.add(a.id);
+    } else if (!quieto || nivel >= 2) {
+      novos.add(a);
+    }
+  }
   if (novos.isNotEmpty) await _iniciarPlugin();
   for (final a in novos) {
     // Curta e direta (pedido do usuário, 2026-11-22): título com cidade e tipo, uma linha
@@ -161,6 +171,32 @@ Future<void> verificarAlertas() async {
 /// Precipitação mínima em 15 minutos para contar como chuva (0,2 mm ≈ 0,8 mm/h).
 const limiarChuva15 = 0.2;
 
+/// Chuva moderada ou mais forte (2,5 mm/h) em 15 minutos.
+const limiarModerada15 = 0.625;
+
+/// Nível do alerta pela cor oficial: 0 = amarelo, 1 = laranja, 2 = vermelho.
+int nivelDoAlerta(Alerta a) {
+  final s = a.severidade.toLowerCase();
+  if (s.contains('grande perigo') || s.contains('extrem')) return 2;
+  final hex = a.cor.replaceAll('#', '');
+  final verde = hex.length >= 6 ? int.tryParse(hex.substring(2, 4), radix: 16) : null;
+  if (verde != null) {
+    if (verde >= 200) return 0;
+    if (verde >= 60) return 1;
+    return 2;
+  }
+  return s.contains('perigo') && !s.contains('potencial') ? 1 : 0;
+}
+
+/// Está dentro do horário de silêncio? (de [s].$1 h até [s].$2 h, podendo virar a noite).
+bool emSilencio((int, int)? s, DateTime agora) {
+  if (s == null) return false;
+  final (ini, fim) = s;
+  final h = agora.hour;
+  if (ini == fim) return false;
+  return ini < fim ? (h >= ini && h < fim) : (h >= ini || h < fim);
+}
+
 /// O que avisar: quando começa, o tipo e a intensidade.
 class AvisoChuva {
   const AvisoChuva({
@@ -188,13 +224,14 @@ class AvisoChuva {
 }
 
 /// Primeiro intervalo com chuva nas próximas 2 horas, ou nulo.
-AvisoChuva? avisoDeChuva(List<Faixa15> faixas, DateTime agora) {
+AvisoChuva? avisoDeChuva(List<Faixa15> faixas, DateTime agora,
+    {double limiar15 = limiarChuva15}) {
   final limite = agora.add(const Duration(hours: 2));
   for (final f in faixas) {
     final fim = f.inicio.add(const Duration(minutes: 15));
     if (!fim.isAfter(agora) || !f.inicio.isBefore(limite)) continue;
     final mm = f.milimetros ?? 0;
-    if (mm < limiarChuva15) continue;
+    if (mm < limiar15) continue;
     final c = f.codigo ?? 0;
     final porHora = mm * 4;
     final intensidade = porHora < 2.5 ? 'fraca' : (porHora < 10 ? 'moderada' : 'forte');
@@ -248,8 +285,11 @@ Future<void> verificarChuva() async {
 
   final agora = DateTime.now();
   final faixas = lerChuva15min(r.body);
-  final aviso = avisoDeChuva(faixas, agora);
+  final aviso = avisoDeChuva(faixas, agora,
+      limiar15: prefs.chuvaSoModerada ? limiarModerada15 : limiarChuva15);
   final sp = await SharedPreferences.getInstance();
+  // Horário de silêncio: não avisa nem marca o episódio (pode avisar depois, se ainda vier).
+  if (aviso != null && emSilencio(prefs.silencio, agora)) return;
   if (aviso == null) {
     // Sem chuva nas próximas 2 horas: o próximo episódio pode ser avisado.
     await sp.remove(_chuvaAvisada);

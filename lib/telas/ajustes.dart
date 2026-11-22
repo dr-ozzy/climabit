@@ -5,6 +5,7 @@ import '../dados/atualizacao.dart';
 import '../dados/notificacoes.dart';
 import '../dados/preferencias.dart';
 import '../dados/repositorio.dart';
+import 'seus_dados.dart';
 
 const _intervalos = {15: '15 min', 30: '30 min', 60: '1 hora', 180: '3 horas'};
 
@@ -66,6 +67,75 @@ class _TelaAjustesState extends State<TelaAjustes> {
     await _p.definirIntervalo(min);
     if (mounted) setState(() {});
     if (_p.algumAviso) await Notificacoes.agendar(min);
+  }
+
+  /// Passos para o widget e os avisos não pararem (economia de bateria do Android).
+  Future<void> _ajudaBateria() async {
+    await showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Widget ou aviso não atualiza?'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'O Android pode pausar apps para economizar bateria. Para o ClimaBit atualizar o '
+            'widget e conferir os avisos:\n\n'
+            '1. Toque em "Abrir configurações do ClimaBit" (abaixo).\n'
+            '2. Toque em Bateria (no Motorola: "Uso da bateria do app"; no Samsung: "Bateria").\n'
+            '3. Escolha "Sem restrições" (ou "Não otimizado").\n'
+            '4. Volte e confira se as notificações do ClimaBit estão permitidas.\n\n'
+            'O ClimaBit consulta a cada 30 minutos só quando há widget na tela ou aviso ligado.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Fechar')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(c);
+              final ok = await abrirDetalhesDoApp();
+              if (!ok && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Abra Configurações › Apps › ClimaBit no celular.')));
+              }
+            },
+            child: const Text('Abrir configurações do ClimaBit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _escolherSilencio() async {
+    final atual = _p.silencio ?? (22, 7);
+    var ini = atual.$1, fim = atual.$2;
+    final r = await showDialog<(int, int)>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Horário de silêncio'),
+          content: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Das '),
+            DropdownButton<int>(
+              value: ini,
+              items: [for (var h = 0; h < 24; h++) DropdownMenuItem(value: h, child: Text('${h}h'))],
+              onChanged: (h) => set(() => ini = h ?? ini),
+            ),
+            const Text(' às '),
+            DropdownButton<int>(
+              value: fim,
+              items: [for (var h = 0; h < 24; h++) DropdownMenuItem(value: h, child: Text('${h}h'))],
+              onChanged: (h) => set(() => fim = h ?? fim),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(c, (ini, fim)), child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    if (r == null) return;
+    await _p.definirSilencio(r);
+    if (mounted) setState(() {});
   }
 
   Future<void> _escolherCidade() async {
@@ -159,21 +229,78 @@ class _TelaAjustesState extends State<TelaAjustes> {
                   onSelectionChanged: ligado ? (s) => _mudarIntervalo(s.first) : null,
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text('Quais alertas avisar', style: tema.textTheme.bodyLarge?.copyWith(
+                    color: _p.avisosLigados ? null : tema.disabledColor)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Todos')),
+                    ButtonSegment(value: 1, label: Text('Laranja e vermelho')),
+                    ButtonSegment(value: 2, label: Text('Só vermelho')),
+                  ],
+                  selected: {_p.nivelMinimoAlerta},
+                  showSelectedIcon: false,
+                  onSelectionChanged: _p.avisosLigados
+                      ? (s) async {
+                          await _p.definirNivelMinimoAlerta(s.first);
+                          if (mounted) setState(() {});
+                        }
+                      : null,
+                ),
+              ),
+              SwitchListTile(
+                title: const Text('Horário de silêncio'),
+                subtitle: Text(_p.silencio == null
+                    ? 'Desligado. Alertas vermelhos avisam sempre.'
+                    : 'Das ${_p.silencio!.$1}h às ${_p.silencio!.$2}h, sem avisos '
+                        '(alertas vermelhos avisam mesmo assim). Toque para mudar.'),
+                value: _p.silencio != null,
+                onChanged: ligado
+                    ? (v) async {
+                        if (v) {
+                          await _escolherSilencio();
+                        } else {
+                          await _p.definirSilencio(null);
+                          if (mounted) setState(() {});
+                        }
+                      }
+                    : null,
+              ),
+              SwitchListTile(
+                title: const Text('Chuva: só avisar se for moderada ou forte'),
+                subtitle: const Text('Garoa e chuva fraca não geram aviso.'),
+                value: _p.chuvaSoModerada,
+                onChanged: _p.avisoChuva
+                    ? (v) async {
+                        await _p.definirChuvaSoModerada(v);
+                        if (mounted) setState(() {});
+                      }
+                    : null,
+              ),
               ListTile(
                 leading: const Icon(Icons.notifications_active_outlined),
                 title: const Text('Mostrar um aviso de exemplo'),
                 subtitle: const Text('Para ver como fica e conferir se as notificações chegam.'),
                 onTap: _exemplo,
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(
-                  'Se os avisos não chegarem, abra as informações do app no Android, '
-                  'toque em Bateria e escolha "Sem restrições".',
-                  style: tema.textTheme.bodySmall,
-                ),
+              ListTile(
+                leading: const Icon(Icons.battery_alert_outlined),
+                title: const Text('Widget ou aviso não atualiza?'),
+                subtitle: const Text('Passos para liberar a bateria do ClimaBit.'),
+                onTap: _ajudaBateria,
               ),
               titulo('Privacidade'),
+              ListTile(
+                leading: const Icon(Icons.folder_shared_outlined),
+                title: const Text('Seus dados'),
+                subtitle: const Text('O que fica guardado neste celular, e apagar tudo.'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => TelaSeusDados(repo: widget.repo))),
+              ),
               paragrafo('• Sem anúncios, sem conta e sem estatísticas de uso.'),
               paragrafo('• O app só se conecta a órgãos oficiais: INMET, CPTEC/INPE, Cemaden, Alerta Rio, '
                   'Defesa Civil de Niterói, UNIFEI (em Itajubá) e o serviço de dados de aeroportos da NOAA '
