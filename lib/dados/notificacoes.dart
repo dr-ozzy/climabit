@@ -123,13 +123,15 @@ Future<void> verificarAlertas() async {
 
   if (novos.isNotEmpty) await _iniciarPlugin();
   for (final a in novos) {
+    // Curta e direta (pedido do usuário, 2026-11-22): título com cidade e tipo, uma linha
+    // com o nível e o horário. O alerta completo fica no app (toque na notificação).
     final quandoTexto = a.ativo(agora)
-        ? 'em vigor até ${quando(a.fim)}'
-        : 'de ${quando(a.inicio)} a ${quando(a.fim)}';
+        ? 'até ${quando(a.fim)}'
+        : '${quando(a.inicio)} a ${quando(a.fim)}';
     await _plugin.show(
       id: int.tryParse(a.id) ?? a.id.hashCode,
-      title: 'Alerta $orgao: ${a.descricao} – ${a.severidade}',
-      body: '${cidade.nome}, $quandoTexto',
+      title: '⚠️ ${cidade.nome}: ${a.descricao}',
+      body: '${a.severidade} · $quandoTexto · $orgao',
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'alertas_oficiais',
@@ -139,8 +141,7 @@ Future<void> verificarAlertas() async {
           priority: Priority.high,
           icon: 'ic_notif_alerta',
           color: corAlerta(a.cor),
-          largeIcon: DrawableResourceAndroidBitmap(ceuDoAlerta(a.descricao, agora)),
-          styleInformation: BigTextStyleInformation(textoLongoAlerta(a, cidade.nome, quandoTexto)),
+          styleInformation: BigTextStyleInformation('${a.severidade} · $quandoTexto · $orgao'),
         ),
       ),
     );
@@ -268,8 +269,9 @@ Future<void> _mostrarAvisoChuva(
   await _iniciarPlugin();
   await _plugin.show(
     id: exemplo ? 900002 : 900001,
-    title: exemplo ? 'Exemplo: ${aviso.titulo(cidade.nome)}' : aviso.titulo(cidade.nome),
-    body: '${aviso.agora ? _maiuscula(aviso.descricao) : '${cidade.nome}: ${aviso.descricao}'}.',
+    // Curta e direta: "☔ Niterói" e uma linha com o horário.
+    title: exemplo ? '☔ Exemplo · ${cidade.nome}' : '☔ ${cidade.nome}',
+    body: linhaChuva(aviso, faixas),
     notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'chuva_chegando',
@@ -279,9 +281,8 @@ Future<void> _mostrarAvisoChuva(
         priority: Priority.high,
         icon: 'ic_notif_chuva',
         color: const Color(0xFF1E6FB8),
-        largeIcon: DrawableResourceAndroidBitmap(ceuDaChuva(aviso.verbo, aviso.inicio)),
-        styleInformation: BigTextStyleInformation(
-            textoLongoChuva(aviso, faixas, cidade.nome, agora)),
+        // Ao abrir a notificação, a mesma linha aparece inteira (sem texto extra).
+        styleInformation: BigTextStyleInformation(linhaChuva(aviso, faixas)),
       ),
     ),
   );
@@ -302,31 +303,6 @@ Future<void> mostrarAvisoExemplo(Cidade cidade) async {
   await _mostrarAvisoChuva(aviso, faixas, cidade, agora, exemplo: true);
 }
 
-/// Cena em pixel art do topo do app (quadrada) para a imagem grande da notificação.
-String _cena(String ceu, DateTime quando) {
-  final noite = quando.hour < 6 || quando.hour >= 18;
-  if (ceu == 'neve') return noite ? 'ceu_q_tema_neve_noite' : 'ceu_q_tema_neve_dia';
-  return 'ceu_q_${ceu}_${noite ? 'noite' : 'dia'}_campo';
-}
-
-/// Cena do aviso de chuva: chuva, trovoada ou neve, de dia ou de noite.
-String ceuDaChuva(String verbo, DateTime inicio) => _cena(
-    verbo.contains('trovoada') ? 'trovoada' : (verbo == 'nevar' ? 'neve' : 'chuva'), inicio);
-
-/// Cena do alerta, pelo tipo escrito na descrição.
-String ceuDoAlerta(String descricao, DateTime agora) {
-  final d = descricao.toLowerCase();
-  final ceu = switch (d) {
-    _ when d.contains('tempestade') || d.contains('trovo') || d.contains('thunder') => 'trovoada',
-    _ when d.contains('neve') || d.contains('geada') || d.contains('frio') || d.contains('snow') ||
-        d.contains('gelo') => 'neve',
-    _ when d.contains('chuva') || d.contains('rain') => 'chuva',
-    _ when d.contains('calor') || d.contains('umidade') || d.contains('heat') => 'limpo',
-    _ => 'nublado',
-  };
-  return _cena(ceu, agora);
-}
-
 /// Cor do alerta (amarelo, laranja ou vermelho) para o ícone e o nome do app na notificação.
 Color corAlerta(String cor) {
   final c = cor.toLowerCase();
@@ -335,20 +311,9 @@ Color corAlerta(String cor) {
   return const Color(0xFFF9A825);
 }
 
-/// Texto da notificação aberta: cidade, período, riscos e as duas primeiras instruções.
-String textoLongoAlerta(Alerta a, String cidade, String quandoTexto) {
-  final linhas = <String>['$cidade, $quandoTexto.'];
-  if (a.riscos.isNotEmpty) linhas.add('Riscos: ${a.riscos.take(2).join(' ')}');
-  for (final i in a.instrucoes.take(2)) {
-    linhas.add('• $i');
-  }
-  linhas.add('Toque para ver o alerta completo.');
-  return linhas.join('\n');
-}
-
-/// Texto da notificação aberta: quando começa, o pico, quando deve parar e o aviso de
-/// que é estimativa.
-String textoLongoChuva(AvisoChuva aviso, List<Faixa15> faixas, String cidade, DateTime agora) {
+/// Linha única do aviso de chuva: "Garoa fraca das 13:55 às 14:10 (15 min)." ou
+/// "Chuva fraca agora. Deve parar até 14:10." Diz "mais forte" só se passar de fraca.
+String linhaChuva(AvisoChuva aviso, List<Faixa15> faixas) {
   final depois = faixas.where((f) => !f.inicio.isBefore(aviso.inicio)).toList();
   Faixa15? pico;
   DateTime? para;
@@ -360,20 +325,16 @@ String textoLongoChuva(AvisoChuva aviso, List<Faixa15> faixas, String cidade, Da
     }
     if (pico == null || mm > (pico.milimetros ?? 0)) pico = f;
   }
-  final linhas = <String>[
-    aviso.agora
-        ? '${_maiuscula(aviso.descricao)} em $cidade.'
-        : '${_maiuscula(aviso.descricao)} em $cidade a partir das ${hora(aviso.inicio)}.',
-  ];
-  if (pico != null && pico.inicio != aviso.inicio) {
-    final porHora = (pico.milimetros ?? 0) * 4;
-    final forca = porHora < 2.5 ? 'fraca' : (porHora < 10 ? 'moderada' : 'forte');
-    linhas.add('Mais forte por volta das ${hora(pico.inicio)} ($forca).');
+  final desc = _maiuscula(aviso.descricao);
+  var t = aviso.agora
+      ? (para == null ? '$desc agora, por mais de 2 h.' : '$desc agora. Deve parar até ${hora(para)}.')
+      : (para == null
+          ? '$desc a partir das ${hora(aviso.inicio)}, por mais de 2 h.'
+          : '$desc das ${hora(aviso.inicio)} às ${hora(para)} '
+              '(${para.difference(aviso.inicio).inMinutes} min).');
+  final porHora = (pico?.milimetros ?? 0) * 4;
+  if (porHora >= 2.5 && pico != null) {
+    t += ' Mais forte às ${hora(pico.inicio)} (${porHora < 10 ? 'moderada' : 'forte'}).';
   }
-  linhas.add(para == null
-      ? 'Deve continuar por mais de 2 horas.'
-      : 'Deve parar por volta das ${hora(para)}.');
-  linhas.add('Estimativa por modelo (Open-Meteo); o horário pode variar uns 15 a 30 minutos.');
-  return linhas.join('\n');
+  return t;
 }
-

@@ -94,7 +94,10 @@ enum Paisagem {
   /// Dia bom: campo aberto, caminho de terra e torre de pedra.
   campo,
 
-  /// Calor forte: vulcão e pedras com lava.
+  /// Calor forte (35 a 39 °C): cidade de barro no deserto, com oásis e palmeiras.
+  deserto,
+
+  /// Calor extremo (acima de 39 °C): vulcão e pedras com lava.
   vulcao,
 
   /// Chuva forte: cidade de pedra com cachoeiras.
@@ -129,9 +132,10 @@ Paisagem escolherPaisagem({
   // com 35 °C ele aparecia demais no verão do Rio).
   final calor = [temperatura, sensacao].whereType<double>().fold<double?>(
       null, (m, v) => m == null || v > m ? v : m);
-  if (calor != null && calor > 39 && estado != EstadoCeu.chuva && estado != EstadoCeu.trovoada) {
-    return Paisagem.vulcao;
-  }
+  final semChuva = estado != EstadoCeu.chuva && estado != EstadoCeu.trovoada;
+  if (calor != null && calor > 39 && semChuva) return Paisagem.vulcao;
+  // Entre 35 e 39 °C: cidade no deserto (quente, mas não tanto quanto o vulcão).
+  if (calor != null && calor >= 35 && semChuva) return Paisagem.deserto;
   if ((chuvaUltimaHora ?? 0) >= 5 || estado == EstadoCeu.trovoada) return Paisagem.cachoeiras;
   if (estado == EstadoCeu.limpo || estado == EstadoCeu.parcial) return Paisagem.campo;
   return Paisagem.morros;
@@ -481,6 +485,9 @@ class PintorCeuPixel extends CustomPainter {
       Paisagem.vulcao => noite
           ? const [Color(0xFF1A0A0A), Color(0xFF3A1414), Color(0xFF5E2318), Color(0xFF8A3A1E)]
           : const [Color(0xFF8C5A3C), Color(0xFFC07A4A), Color(0xFFE6A060), Color(0xFFF5C98A)],
+      Paisagem.deserto => noite
+          ? const [Color(0xFF0E1630), Color(0xFF1A2444), Color(0xFF2C3254), Color(0xFF4A3F58)]
+          : const [Color(0xFF4F8FCF), Color(0xFF7FB0DA), Color(0xFFB9CFD6), Color(0xFFEBD9AE)],
       Paisagem.neve => noite
           ? const [Color(0xFF141C2E), Color(0xFF22304A), Color(0xFF34455F), Color(0xFF4A5C78)]
           : const [Color(0xFF8FA8C4), Color(0xFFAFC2D6), Color(0xFFCAD7E4), Color(0xFFE3EAF1)],
@@ -638,6 +645,8 @@ class PintorCeuPixel extends CustomPainter {
         _morros(px, cols, linhas, linhaChao, q, pal);
       case Paisagem.campo:
         _campo(px, cols, linhas, linhaChao, q, pal);
+      case Paisagem.deserto:
+        _deserto(px, cols, linhas, linhaChao, q);
       case Paisagem.vulcao:
         _vulcao(px, cols, linhas, linhaChao, q);
       case Paisagem.cachoeiras:
@@ -917,6 +926,167 @@ class PintorCeuPixel extends CustomPainter {
       final y = linhas - 2 - vida;
       px(x, y, vida < 25 ? lavaClara : lava.withValues(alpha: 0.6));
     }
+  }
+
+  /// Calor forte (35 a 39 °C): cidade de barro com cúpulas no deserto, muralha, oásis com
+  /// palmeiras, dunas, ar tremendo de calor e um camelo passando. Desenho próprio do app.
+  void _deserto(_Px px, int cols, int linhas, int linhaChao, int q) {
+    final duna = noite ? const Color(0xFF4A3A30) : const Color(0xFFD8A862);
+    final dunaClara = noite ? const Color(0xFF5E4A3C) : const Color(0xFFEABF7C);
+    final areia = noite ? const Color(0xFF5A4636) : const Color(0xFFE2B66E);
+    final areiaClara = noite ? const Color(0xFF6E5642) : const Color(0xFFF0CD8C);
+    final areiaEsc = noite ? const Color(0xFF45352A) : const Color(0xFFC9964F);
+    final parede = noite ? const Color(0xFF6A4E3E) : const Color(0xFFE0A878);
+    final paredeSombra = noite ? const Color(0xFF4E3A2E) : const Color(0xFFB98058);
+    final paredeClara = noite ? const Color(0xFF7C5C48) : const Color(0xFFF4CDA2);
+    final cupula = noite ? const Color(0xFF34505E) : const Color(0xFF3A8CA6);
+    final cupulaClara = noite ? const Color(0xFF4C6E7E) : const Color(0xFF79C2D4);
+    final janela = noite ? const Color(0xFFFFC866) : const Color(0xFF5A3826);
+
+    // Dunas ao fundo.
+    int fundo(int x) =>
+        (linhaChao - 12 + 4 * math.sin(x * 0.04 + 2.1) + 2 * math.sin(x * 0.11 + 0.3)).round();
+    for (var x = 0; x < cols; x++) {
+      final hf = fundo(x);
+      px(x, hf, dunaClara);
+      px(x, hf + 1, duna, 1, linhaChao - hf + 2);
+    }
+
+    // Cidade: (deslocamento, largura, altura, telhado: 0 plano, 1 cúpula, 2 torre com cúpula).
+    const predios = [
+      (0, 10, 10, 0), (8, 7, 17, 0), (14, 15, 12, 1), (28, 7, 22, 2),
+      (34, 12, 9, 0), (44, 9, 13, 1), (52, 11, 8, 0),
+    ];
+    final x0 = (cols * 0.62).round() - 31;
+    final base = linhaChao - 1;
+    for (final (dx, w, h, telhado) in predios) {
+      final bx = x0 + dx;
+      final topo = base - h;
+      px(bx, topo, paredeClara, w, 1);
+      px(bx, topo + 1, parede, w - 1, h);
+      px(bx + w - 1, topo + 1, paredeSombra, 1, h);
+      if (telhado == 0) {
+        // Mureta com ameias.
+        for (var k = 0; k < w; k += 2) {
+          px(bx + k, topo - 1, paredeClara);
+        }
+      } else {
+        final r = telhado == 1 ? (w - 3) ~/ 2 : (w - 1) ~/ 2;
+        final cx = bx + w ~/ 2;
+        for (var dy = 0; dy <= r; dy++) {
+          final meia = math.sqrt(r * r - dy * dy).round();
+          px(cx - meia, topo - dy, cupula, meia * 2 + 1);
+          if (meia > 1) px(cx - meia + 1, topo - dy, cupulaClara, 1 + meia ~/ 2);
+        }
+        px(cx, topo - r - 2, paredeClara, 1, 2);
+      }
+      // Janelas em arco, em fileiras.
+      for (var y = topo + 3; y < base - 3; y += 5) {
+        for (var k = 2; k < w - 2; k += 4) {
+          px(bx + k, y, janela, 1, 2);
+        }
+      }
+    }
+    // Muralha na frente, com ameias e portão em arco.
+    final muroTopo = base - 4;
+    px(x0 - 4, muroTopo, paredeClara, 71, 1);
+    px(x0 - 4, muroTopo + 1, parede, 71, base - muroTopo + 1);
+    for (var k = 0; k < 71; k += 3) {
+      px(x0 - 4 + k, muroTopo - 1, paredeClara);
+    }
+    final portao = x0 + 29;
+    px(portao, muroTopo + 2, noite ? const Color(0xFF2A1E18) : const Color(0xFF6E4630), 5, 4);
+    px(portao + 1, muroTopo + 1, noite ? const Color(0xFF2A1E18) : const Color(0xFF6E4630), 3, 1);
+    if (noite) {
+      // Lanternas acesas dos lados do portão.
+      final acesa = (q ~/ 8) % 5 == 0 ? const Color(0xFFFFE6A0) : const Color(0xFFFFB84D);
+      px(portao - 2, muroTopo + 1, acesa);
+      px(portao + 6, muroTopo + 1, acesa);
+    }
+
+    // Areia na frente, com ondulações do vento.
+    int frente(int x) => (linhaChao - 2 + 1.5 * math.sin(x * 0.05 + 1.0)).round();
+    for (var x = 0; x < cols; x++) {
+      final hn = frente(x);
+      px(x, hn, areiaClara);
+      for (var y = hn + 1; y < linhas; y++) {
+        px(x, y, _bayer[y % 4][x % 4] < 5 ? areiaClara : areia);
+      }
+    }
+    final nOndas = (cols * (linhas - linhaChao) / 70).round();
+    for (var i = 0; i < nOndas; i++) {
+      final x = (_sorteio(i, 41) * cols).floor();
+      final y = linhaChao + 2 + (_sorteio(i, 42) * (linhas - linhaChao - 3)).floor();
+      px(x, y, areiaEsc, 3);
+      px(x + 3, y - 1, areiaEsc, 2);
+    }
+
+    // Oásis com palmeiras à direita e palmeiras perto da muralha.
+    final ox = (cols * 0.88).round();
+    final agua = noite ? const Color(0xFF2E4E6E) : const Color(0xFF4FA6C8);
+    final aguaClara = noite ? const Color(0xFF4A6E92) : const Color(0xFFA6DCEC);
+    for (var dy = 0; dy < 3; dy++) {
+      final meia = dy == 1 ? 9 : 7;
+      px(ox - meia, linhaChao + 2 + dy, agua, meia * 2 + 1);
+    }
+    px(ox - 5 + (q ~/ 10) % 6, linhaChao + 3, aguaClara, 3);
+    _palmeira(px, ox - 8, linhaChao + 2, 11, q);
+    _palmeira(px, ox + 7, linhaChao + 2, 8, q + 6);
+    _palmeira(px, x0 - 7, frente(x0 - 7) + 1, 10, q + 3);
+
+    // Ar tremendo de calor (só de dia).
+    if (!noite) {
+      for (var i = 0; i < 6; i++) {
+        final y = linhaChao - 14 + (_sorteio(i, 43) * 12).floor();
+        final x = (_sorteio(i, 44) * cols).floor() + (math.sin((q + i * 9) * 0.2) * 2).round();
+        if ((q + i * 13) % 40 < 10) continue;
+        px(x, y, const Color(0x30FFFFFF), 8 + i % 3 * 3);
+      }
+    }
+
+    // Camelo atravessando devagar, de frente para a direita.
+    const camelo = [
+      '.......XX.',
+      '..XX...XXX',
+      '.XXXX..X..',
+      'XXXXXXXX..',
+      '.XXXXXX...',
+    ];
+    final pernas = (q ~/ 8).isEven ? '.X..X.X...' : '..X.X..X..';
+    final corCamelo = noite ? const Color(0xFF3A2C22) : const Color(0xFFA0703E);
+    final percurso = cols + 60;
+    final cxCam = (q ~/ 6) % percurso - 12;
+    final cyCam = linhas - 9;
+    for (var r = 0; r < camelo.length + 2; r++) {
+      final linha = r < camelo.length ? camelo[r] : pernas;
+      for (var k = 0; k < linha.length; k++) {
+        if (linha[k] == 'X') px(cxCam + k, cyCam + r, corCamelo);
+      }
+    }
+  }
+
+  void _palmeira(_Px px, int x, int base, int alto, int q) {
+    final tronco = noite ? const Color(0xFF3A2C22) : const Color(0xFF8A6440);
+    final folha = noite ? const Color(0xFF24402A) : const Color(0xFF4E8F3A);
+    final folhaEsc = noite ? const Color(0xFF1A3020) : const Color(0xFF33692A);
+    var tx = x;
+    for (var k = 0; k < alto; k++) {
+      if (k == alto ~/ 2) tx += 1;
+      px(tx, base - 1 - k, tronco);
+    }
+    final topo = base - alto;
+    final balanco = (q ~/ 12) % 2;
+    for (final d in [-1, 1]) {
+      for (var k = 1; k <= 5; k++) {
+        px(tx + d * k, topo - 1 + (k * k) ~/ 6 + (k > 3 ? balanco : 0), k < 3 ? folha : folhaEsc);
+      }
+      for (var k = 1; k <= 3; k++) {
+        px(tx + d * k, topo - 2 + k ~/ 2, folha);
+      }
+    }
+    px(tx, topo - 2, folha);
+    px(tx - 1, topo - 1, folha, 3);
+    px(tx, topo, noite ? const Color(0xFF2A1E14) : const Color(0xFF5A3A1E));
   }
 
   /// Chuva forte: cidade de pedra azul clara com cachoeiras caindo num lago.
