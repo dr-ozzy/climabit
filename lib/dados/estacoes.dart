@@ -123,7 +123,12 @@ Future<List<EstacaoAlcancavel>> estacoesAlcancaveis(Cidade c, HttpCache http,
 /// Estação escolhida pelo usuário para a cidade: (código, município da consulta).
 /// Nula = automática, a mais próxima.
 Future<(String, int)?> estacaoEscolhida(int geocode) async {
-  final s = (await SharedPreferences.getInstance()).getString('estacao_escolhida_$geocode');
+  String? s;
+  try {
+    s = (await SharedPreferences.getInstance()).getString('estacao_escolhida_$geocode');
+  } catch (_) {
+    return null; // sem preferências disponíveis: estação automática
+  }
   final partes = s?.split('|');
   if (partes == null || partes.length != 2) return null;
   final g = int.tryParse(partes[1]);
