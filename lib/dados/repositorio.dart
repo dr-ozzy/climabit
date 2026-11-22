@@ -106,6 +106,10 @@ class Repositorio extends ChangeNotifier {
   /// Últimas 24 horas do mesmo modelo (Open-Meteo), para comparar agora com ontem.
   List<HoraChuva> horasPassadas = [];
 
+  /// Previsão por hora dos próximos 7 dias (para as rotinas de atividades). As outras
+  /// telas usam só [chuvaHoraria] (próximas 25 horas).
+  List<HoraChuva> horasSemana = [];
+
   /// A previsão por hora é oficial (Canadá) e não estimativa de modelo.
   bool horasOficiais = false;
   bool previsaoEstimada = false;
@@ -130,6 +134,7 @@ class Repositorio extends ChangeNotifier {
     ventoEstimado = null;
     previsaoEstimada = false;
     chuvaHoraria = [];
+    horasSemana = [];
     horasPassadas = [];
     fontes.clear();
     notifyListeners();
@@ -295,7 +300,8 @@ class Repositorio extends ChangeNotifier {
     // do app usa só a hora atual em diante.
     final todasHoras = _ler('Open-Meteo (por hora)', resultados[11], lerChuvaHoraria) ?? [];
     final corte = DateTime.now().subtract(const Duration(minutes: 59));
-    chuvaHoraria = todasHoras.where((h) => h.hora.isAfter(corte)).toList();
+    horasSemana = todasHoras.where((h) => h.hora.isAfter(corte)).toList();
+    chuvaHoraria = horasSemana.take(25).toList();
     horasPassadas = todasHoras.where((h) => !h.hora.isAfter(corte)).toList();
 
     await _completarComOpenMeteo(c);
@@ -325,6 +331,7 @@ class Repositorio extends ChangeNotifier {
     ceuAeroporto = null;
     previsao = d?.dias ?? [];
     chuvaHoraria = d?.horas ?? [];
+    horasSemana = chuvaHoraria;
     horasPassadas = [];
     horasOficiais = chuvaHoraria.isNotEmpty;
     final novos = d?.alertas;
@@ -631,7 +638,8 @@ Uri _enderecoChuvaHoraria(double lat, double lon) =>
       'longitude': lon.toStringAsFixed(2),
       'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,'
           'weather_code,uv_index,is_day,wind_speed_10m',
-      'forecast_hours': '25',
+      // 7 dias à frente (rotinas de atividades); as telas usam as primeiras 25 horas.
+      'forecast_hours': '169',
       'past_hours': '25',
       'timezone': 'GMT',
     });

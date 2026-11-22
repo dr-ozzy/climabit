@@ -11,6 +11,7 @@ import '../dados/lua.dart';
 import '../dados/mare.dart';
 import '../dados/repositorio.dart';
 import '../util/formatos.dart';
+import 'bons_horarios.dart';
 import 'aviso_atualizacao.dart';
 import 'ceu.dart';
 import 'componentes.dart';
@@ -91,6 +92,8 @@ class TelaAgora extends StatelessWidget {
       if (repo.previsao.isNotEmpty) _CartaoChuva(repo: repo, agora: agora, hoje: hoje),
       if (repo.chuvaHoraria.isNotEmpty)
         _CartaoProximasHoras(horas: repo.chuvaHoraria, oficial: repo.horasOficiais),
+      if (repo.chuvaHoraria.isNotEmpty)
+        CartaoBonsHorarios(horas: repo.chuvaHoraria, horasSemana: repo.horasSemana),
       _CartaoMedicao(
           medicao: repo.medicao,
           estado: repo.fontes['INMET estação'],
