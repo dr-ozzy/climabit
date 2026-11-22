@@ -137,7 +137,11 @@ class _InicioState extends State<Inicio> {
       case 2:
         return TelaChuva(repo: widget.repo);
       case 3:
-        return TelaRadar(repo: widget.repo);
+        // Chave da cidade: trocar de cidade recria a aba (radares e vento da cidade nova).
+        return TelaRadar(
+          key: ValueKey('${widget.repo.cidade.geocode} ${widget.repo.cidade.latitude}'),
+          repo: widget.repo,
+        );
       default:
         return Center(child: Text('${_destinos[_aba].rotulo}: em construção'));
     }

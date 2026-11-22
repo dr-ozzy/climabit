@@ -236,7 +236,11 @@ class _TelaRadarState extends State<TelaRadar> {
                     ),
                   ),
                   if (_vento)
-                    MapaVento(cidade: cidade, mapa: _mapa)
+                    MapaVento(
+                      key: ValueKey('${cidade.geocode} ${cidade.latitude}'),
+                      cidade: cidade,
+                      mapa: _mapa,
+                    )
                   else ...[
                     if (!dentro && cidade.latitude != null)
                       Card(

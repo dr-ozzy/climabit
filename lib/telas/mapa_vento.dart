@@ -102,6 +102,8 @@ class _MapaVentoState extends State<MapaVento> {
                 else
                   ColoredBox(color: terra),
                 if (grade != null)
+                  CustomPaint(painter: _PintorFundo(grade, _hora)),
+                if (grade != null)
                   _LinhasVento(
                     grade: grade,
                     hora: _hora.toDouble(),
@@ -122,6 +124,7 @@ class _MapaVentoState extends State<MapaVento> {
             ),
           ),
         ),
+        const _LegendaChuva(),
         _LegendaVento(cores: escuro ? _coresEscuro : _coresClaro),
         const SizedBox(height: 12),
         if (grade != null && ventoCidade != null) ...[
@@ -383,6 +386,147 @@ class _PintorLinhas extends CustomPainter {
 
   @override
   bool shouldRepaint(_PintorLinhas old) => old.p != p || old.cores != cores;
+}
+
+/// Escala da chuva (mm/h → cor). Abaixo de 0,1 mm/h não há chuva: aparecem só as nuvens.
+const _escalaChuva = <(double, Color)>[
+  (0.1, Color(0x9942A5F5)), // azul: fraca
+  (1, Color(0xAA1E88E5)),
+  (3, Color(0xB343A047)), // verde: moderada
+  (6, Color(0xBF7CB342)),
+  (10, Color(0xC7FDD835)), // amarelo: forte
+  (20, Color(0xCCFB8C00)), // laranja: muito forte
+];
+
+/// Nuvem cheia (100 %): branco translúcido.
+const _nuvemCheia = Color(0x5CFFFFFF);
+
+Color corChuvaNuvem(double mm, double nuvens) {
+  if (mm < _escalaChuva.first.$1) {
+    final a = (nuvens.clamp(0, 100) / 100) * _nuvemCheia.a;
+    return _nuvemCheia.withValues(alpha: a);
+  }
+  for (var i = 1; i < _escalaChuva.length; i++) {
+    final (v1, c1) = _escalaChuva[i];
+    if (mm <= v1) {
+      final (v0, c0) = _escalaChuva[i - 1];
+      return Color.lerp(c0, c1, (mm - v0) / (v1 - v0))!;
+    }
+  }
+  return _escalaChuva.last.$2;
+}
+
+/// Fundo de chuva e nuvens: triângulos entre os pontos da grade, com as cores misturadas
+/// pela placa de vídeo (transição suave, sem gerar imagem).
+class _PintorFundo extends CustomPainter {
+  _PintorFundo(this.grade, this.hora);
+
+  final GradeVento grade;
+  final int hora;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final g = grade;
+    final nc = g.colunas, nl = g.linhas;
+    final h = hora.clamp(0, g.horas.length - 1);
+    final pos = Float32List(nc * nl * 2);
+    final cores = Int32List(nc * nl);
+    final a = g.area;
+    for (var l = 0; l < nl; l++) {
+      final lat = a.norte - (a.norte - a.sul) * l / (nl - 1);
+      final (_, y) = a.posicao(lat, a.oeste);
+      for (var c = 0; c < nc; c++) {
+        final i = l * nc + c;
+        pos[i * 2] = c / (nc - 1) * s.width;
+        pos[i * 2 + 1] = y * s.height;
+        cores[i] = corChuvaNuvem(g.chuva[h][i], g.nuvens[h][i]).toARGB32();
+      }
+    }
+    final indices = Uint16List((nc - 1) * (nl - 1) * 6);
+    var k = 0;
+    for (var l = 0; l < nl - 1; l++) {
+      for (var c = 0; c < nc - 1; c++) {
+        final i = l * nc + c;
+        indices
+          ..[k++] = i
+          ..[k++] = i + 1
+          ..[k++] = i + nc
+          ..[k++] = i + 1
+          ..[k++] = i + nc + 1
+          ..[k++] = i + nc;
+      }
+    }
+    final v = ui.Vertices.raw(
+      ui.VertexMode.triangles,
+      pos,
+      colors: cores,
+      indices: indices,
+    );
+    canvas.drawVertices(v, BlendMode.dst, Paint());
+    v.dispose();
+  }
+
+  @override
+  bool shouldRepaint(_PintorFundo old) =>
+      old.grade != grade || old.hora != hora;
+}
+
+class _LegendaChuva extends StatelessWidget {
+  const _LegendaChuva();
+
+  @override
+  Widget build(BuildContext context) {
+    final estilo = Theme.of(context).textTheme.labelSmall;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Text('Chuva', style: estilo),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: LinearGradient(
+                      colors: [
+                        for (final (_, c) in _escalaChuva)
+                          c.withValues(alpha: 1),
+                      ],
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text('fraca', style: estilo),
+                    const Spacer(),
+                    Text('moderada', style: estilo),
+                    const Spacer(),
+                    Text('forte (10 mm/h)', style: estilo),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 18,
+            height: 10,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.black26, width: 0.5),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text('nuvens', style: estilo),
+        ],
+      ),
+    );
+  }
 }
 
 class _LegendaVento extends StatelessWidget {
