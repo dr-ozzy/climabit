@@ -399,7 +399,7 @@ class _FaixaAlertasState extends State<FaixaAlertas> {
                   Text(subtitulo, style: estilo),
                 ]),
               ),
-              Icon(_aberto ? Icons.remove : Icons.add,
+              Icon(_aberto ? Icons.expand_less : Icons.expand_more, size: 28,
                   color: texto, semanticLabel: _aberto ? 'Fechar detalhes' : 'Abrir detalhes'),
             ]),
             if (_aberto) ...[
