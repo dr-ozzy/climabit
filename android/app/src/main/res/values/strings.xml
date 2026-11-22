@@ -3,4 +3,6 @@
     <string name="widget_descricao">Temperatura e céu de agora, com faixa de alerta</string>
     <string name="widget_descricao_barra">Agora e as próximas horas: temperatura e sensação térmica</string>
     <string name="widget_descricao_simples">Temperatura e ícone do céu, fundo translúcido</string>
+    <string name="widget_descricao_cartao">Relógio, temperatura e gráfico das próximas horas, em cartão claro</string>
+    <string name="widget_descricao_horario">Agora e colunas das próximas horas com a linha da temperatura, em cartão escuro</string>
 </resources>

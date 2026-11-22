@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cartão escuro do widget "Horário escuro". -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#EB1C2027" />
+    <corners android:radius="24dp" />
+</shape>

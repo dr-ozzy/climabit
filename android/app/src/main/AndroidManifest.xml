@@ -87,6 +87,22 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/widget_simples_4x2" />
         </receiver>
+        <receiver android:name=".WidgetCartao" android:exported="false"
+            android:label="ClimaBit cartão claro">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_cartao" />
+        </receiver>
+        <receiver android:name=".WidgetHorario" android:exported="false"
+            android:label="ClimaBit horário escuro">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_horario" />
+        </receiver>
         <receiver android:name=".WidgetClima4x1" android:exported="false"
             android:label="ClimaBit barra (4×1)">
             <intent-filter>

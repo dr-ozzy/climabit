@@ -21,6 +21,8 @@ const _provedores = [
   'app.climabit.WidgetSimples4x2',
   'app.climabit.WidgetClima4x1',
   'app.climabit.WidgetSimples4x1',
+  'app.climabit.WidgetCartao',
+  'app.climabit.WidgetHorario',
 ];
 
 const tarefaWidget = 'atualizar_widget';
@@ -41,7 +43,16 @@ class DadosWidget {
     this.sensacao = '',
     this.horas = const [],
     this.alertaCurto = '',
+    this.detalhes = '',
+    this.serie = const [],
   });
+
+  /// Linha do cartão claro: "Vento 12 km/h · Umidade 70 % · UV 8".
+  final String detalhes;
+
+  /// Próximas horas, de hora em hora, para o gráfico dos widgets "Cartão claro" e
+  /// "Horário escuro": (hora, temperatura, chance de chuva, ícone).
+  final List<(String, String, String, String)> serie;
 
   /// Resumo do alerta em uma linha breve (barra 4 × 1): "Tempestade até 23:59 (+1)".
   final String alertaCurto;
@@ -84,6 +95,14 @@ class DadosWidget {
         'texto_alerta': textoAlerta,
         'sensacao': sensacao,
         'alerta_curto': alertaCurto,
+        'detalhes': detalhes,
+        'g_n': serie.length,
+        for (var i = 0; i < serie.length; i++) ...{
+          'g${i}_h': serie[i].$1,
+          'g${i}_t': serie[i].$2,
+          'g${i}_p': serie[i].$3,
+          'g${i}_i': serie[i].$4,
+        },
         for (var i = 0; i < 3; i++) ...{
           'h${i + 1}_hora': i < horas.length ? horas[i].$1 : '',
           'h${i + 1}_temp': i < horas.length ? horas[i].$2 : '',
@@ -177,6 +196,22 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
     textoAlerta: texto,
     sensacao: sensacaoAgora == null ? '' : 'sensação ${sensacaoAgora.round()}°',
     alertaCurto: curto,
+    detalhes: [
+      if (ventoKmh != null) 'Vento ${ventoKmh.round()} km/h',
+      if (m.umidade != null) 'Umidade ${m.umidade!.round()} %',
+      if (chance != null) 'Chuva $chance %',
+    ].join(' · '),
+    serie: [
+      for (final h in repo.chuvaHoraria
+          .where((h) => h.temperatura != null && h.hora.isAfter(agora))
+          .take(12))
+        (
+          '${h.hora.hour}h',
+          '${h.temperatura!.round()}',
+          h.probabilidade == null ? '' : '${h.probabilidade} %',
+          iconeWmo(h.codigo, h.dia ?? (h.hora.hour >= 6 && h.hora.hour < 18)),
+        ),
+    ],
     horas: [
       for (final h in horasDoDia(repo.chuvaHoraria, agora))
         (
