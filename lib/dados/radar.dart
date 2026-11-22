@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'dart:ui' show Color;
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -87,6 +88,167 @@ abstract class FonteRadar {
   /// Cidades de referência marcadas no mapa (além da cidade escolhida).
   List<(double, double, String)> get referencias =>
       const [(-22.9068, -43.1729, 'Rio de Janeiro'), (-22.8832, -43.1034, 'Niterói')];
+
+  /// Texto da fonte no rodapé da tela.
+  String get descricaoFonte => '$orgao, radar meteorológico $nome';
+}
+
+/// Radar para cidades sem radar oficial no app: mosaico mundial do RainViewer (API pública
+/// gratuita: últimas 2 horas, uma imagem a cada 10 minutos, zoom até 7, uma única escala de
+/// cores). Área de 2 × 2 blocos do zoom 7 (uns 600 km) com a cidade perto do centro.
+/// As áreas sem cobertura de radar aparecem escurecidas.
+class RadarRainViewer extends FonteRadar {
+  RadarRainViewer(this.latitude, this.longitude, {http.Client? cliente})
+      : _cliente = cliente ?? http.Client() {
+    final (fx, fy) = blocoDe(latitude, longitude);
+    // Dois blocos em cada direção, escolhidos para a cidade ficar perto do centro.
+    _x0 = (fx - 0.5).floor();
+    _y0 = (fy - 0.5).floor();
+  }
+
+  final double latitude;
+  final double longitude;
+  final http.Client _cliente;
+  late final int _x0;
+  late final int _y0;
+
+  static const _z = 7;
+  static const _lado = 256;
+  static const _n = 1 << _z;
+  static const _mapas = 'https://api.rainviewer.com/public/weather-maps.json';
+  static const _blocos = 'https://tilecache.rainviewer.com';
+
+  /// Posição (fracionária) do bloco do zoom 7 que contém o ponto.
+  static (double, double) blocoDe(double lat, double lon) {
+    final r = lat * math.pi / 180;
+    final x = (lon + 180) / 360 * _n;
+    final y = (1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2 * _n;
+    return (x, y);
+  }
+
+  static double _lonDe(int x) => x / _n * 360 - 180;
+  static double _latDe(int y) {
+    final k = math.pi * (1 - 2 * y / _n);
+    return math.atan((math.exp(k) - math.exp(-k)) / 2) * 180 / math.pi;
+  }
+
+  @override
+  String get nome => 'RainViewer';
+  @override
+  String get orgao => 'RainViewer';
+  @override
+  int get intervaloMin => 20;
+  @override
+  bool get legendaNaImagem => false;
+  @override
+  String get rotuloHora => 'Imagem das';
+  @override
+  List<(double, double, String)> get referencias => const [];
+  @override
+  String get descricaoFonte =>
+      'RainViewer (rainviewer.com), mosaico de radares meteorológicos de vários países; '
+      'não é fonte oficial brasileira. Áreas escurecidas: sem cobertura de radar';
+
+  /// Escala "Universal Blue" do RainViewer (tabela de cores publicada por eles).
+  @override
+  List<(String, Color)> get legenda => const [
+        ('10', Color(0xFFCEC087)),
+        ('20', Color(0xFF00A3E0)),
+        ('30', Color(0xFF005588)),
+        ('40', Color(0xFFFFAA00)),
+        ('50', Color(0xFFC10000)),
+        ('60', Color(0xFFFF77FF)),
+      ];
+
+  @override
+  AreaRadar get area => AreaRadar(
+        oeste: _lonDe(_x0),
+        leste: _lonDe(_x0 + 2),
+        norte: _latDe(_y0),
+        sul: _latDe(_y0 + 2),
+      );
+
+  Future<ui.Image?> _imagem(String url) async {
+    try {
+      final r = await _cliente.get(Uri.parse(url), headers: _cabecalhos)
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode != 200) return null;
+      final codec = await ui.instantiateImageCodec(r.bodyBytes);
+      return (await codec.getNextFrame()).image;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Junta os 4 blocos (e, por cima, a máscara de cobertura) numa imagem só.
+  Future<Uint8List?> _juntar(List<ui.Image?> blocos, List<ui.Image?> cobertura) async {
+    if (blocos.every((b) => b == null)) return null;
+    final gravador = ui.PictureRecorder();
+    final tela = ui.Canvas(gravador);
+    final sombra = ui.Paint()..color = const Color(0x59000000);
+    for (var i = 0; i < 4; i++) {
+      final pos = ui.Offset((i % 2) * _lado.toDouble(), (i ~/ 2) * _lado.toDouble());
+      final b = blocos[i];
+      if (b != null) tela.drawImage(b, pos, ui.Paint());
+      final c = cobertura[i];
+      // A máscara é preta onde não há radar e transparente onde há.
+      if (c != null) {
+        tela.drawImage(c, pos, ui.Paint()..colorFilter = ui.ColorFilter.mode(
+            sombra.color, ui.BlendMode.srcIn));
+      }
+    }
+    final img = await gravador.endRecording().toImage(_lado * 2, _lado * 2);
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    img.dispose();
+    return bytes?.buffer.asUint8List();
+  }
+
+  List<String> _enderecos(String caminho) => [
+        for (var i = 0; i < 4; i++)
+          '$caminho/$_lado/$_z/${_x0 + i % 2}/${_y0 + i ~/ 2}',
+      ];
+
+  @override
+  Future<List<QuadroRadar>> quadros() async {
+    try {
+      final r = await _cliente.get(Uri.parse(_mapas), headers: _cabecalhos)
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode != 200) return [];
+      final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+      final host = (j['host'] as String?) ?? _blocos;
+      final passado = ((j['radar'] as Map<String, dynamic>?)?['past'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (passado.isEmpty) return [];
+      // Uma imagem a cada 20 minutos (7 imagens nas últimas 2 horas).
+      final escolhidos = [
+        for (var i = passado.length - 1; i >= 0; i -= 2) passado[i],
+      ].reversed.toList();
+      final cobertura = await Future.wait([
+        for (final e in _enderecos('$host/v2/coverage/0')) _imagem('$e/0/0_0.png'),
+      ]);
+      final quadros = <QuadroRadar>[];
+      for (final q in escolhidos) {
+        final blocos = await Future.wait([
+          for (final e in _enderecos('$host${q['path']}')) _imagem('$e/2/1_1.png'),
+        ]);
+        final bytes = await _juntar(blocos, cobertura);
+        for (final b in blocos) {
+          b?.dispose();
+        }
+        if (bytes == null) continue;
+        final t = DateTime.fromMillisecondsSinceEpoch((q['time'] as num).toInt() * 1000,
+            isUtc: true);
+        quadros.add(QuadroRadar(bytes, t.toLocal()));
+      }
+      for (final c in cobertura) {
+        c?.dispose();
+      }
+      return quadros;
+    } catch (_) {
+      return [];
+    }
+  }
 }
 
 /// Radar do Canadá: mosaico oficial do Environment and Climate Change Canada (taxa de
@@ -391,10 +553,13 @@ class RadarNiteroi extends FonteRadar {
 
 /// Contornos oficiais do IBGE (municípios do RJ e estados vizinhos), guardados no app.
 class ContornosMapa {
-  ContornosMapa(this.estados, this.municipios);
+  ContornosMapa(this.estados, this.municipios, this.brasil);
 
   final List<List<(double, double)>> estados;
   final List<List<(double, double)>> municipios;
+
+  /// Estados do Brasil inteiro (malha simplificada do IBGE), para mapas fora do RJ.
+  final List<List<(double, double)>> brasil;
 
   static ContornosMapa? _cache;
 
@@ -410,6 +575,16 @@ class ContornosMapa {
                 ((p[1] as num).toDouble(), (p[0] as num).toDouble()),
             ],
         ];
-    return _cache = ContornosMapa(aneis('estados'), aneis('municipios'));
+    final b = jsonDecode(await rootBundle.loadString('assets/estados_brasil.json'))
+        as Map<String, dynamic>;
+    final brasil = [
+      for (final anel in (b['aneis'] as List).cast<List>())
+        [
+          // No arquivo: longitude, latitude, longitude, latitude...
+          for (var i = 0; i + 1 < anel.length; i += 2)
+            ((anel[i + 1] as num).toDouble(), (anel[i] as num).toDouble()),
+        ],
+    ];
+    return _cache = ContornosMapa(aneis('estados'), aneis('municipios'), brasil);
   }
 }

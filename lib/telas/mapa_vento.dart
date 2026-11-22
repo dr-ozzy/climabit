@@ -111,8 +111,8 @@ class _MapaVentoState extends State<MapaVento> {
     final escuro = tema.colorScheme.brightness == Brightness.dark;
     final grade = _grade;
     final area = grade?.area ?? areaAoRedor(c.latitude!, c.longitude!);
-    // O contorno do IBGE só existe para a região do Rio; fora dela, fundo liso de terra.
-    final noMapa = RadarSumare().area.contem(c.latitude!, c.longitude!);
+    // Contorno do IBGE no Brasil (detalhado no RJ, só estados no resto); no Canadá, liso.
+    final noMapa = !c.noCanada;
     final terra = tema.colorScheme.surfaceContainerHighest;
     final (cx, cy) = area.posicao(c.latitude!, c.longitude!);
     final ventoCidade = grade?.ventoEm(cx, cy, _hora);

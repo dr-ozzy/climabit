@@ -41,7 +41,14 @@ class _TelaRadarState extends State<TelaRadar> {
     if (c.noCanada && c.latitude != null && c.longitude != null) {
       return [RadarCanada(c.latitude!, c.longitude!)];
     }
-    return [RadarNiteroi(), RadarSumare()];
+    // Fora da área dos radares do Rio: mosaico do RainViewer centrado na cidade.
+    final rio = [RadarNiteroi(), RadarSumare()];
+    if (c.latitude != null &&
+        c.longitude != null &&
+        !rio.any((r) => r.area.contem(c.latitude!, c.longitude!))) {
+      return [RadarRainViewer(c.latitude!, c.longitude!)];
+    }
+    return rio;
   }
 
   Uint8List? _fundo;
@@ -394,7 +401,7 @@ class _TelaRadarState extends State<TelaRadar> {
                       ),
                     const SizedBox(height: 12),
                     Text(
-                      'Fonte: ${fonte.orgao}, radar meteorológico ${fonte.nome}. '
+                      'Fonte: ${fonte.descricaoFonte}. '
                       'Mapa: ${fonte.creditoMapa}.'
                       '${_obtidoEm != null ? ' Obtido às ${hora(_obtidoEm!)}.' : ''}',
                       style: tema.textTheme.bodySmall?.copyWith(
@@ -500,6 +507,12 @@ class PintorMapa extends CustomPainter {
       ..color = linhaEstado
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
+    // Estados do Brasil (simplificados) e, por cima, o mapa detalhado do RJ.
+    for (final a in mapa.brasil) {
+      final p = _caminho(a, s);
+      canvas.drawPath(p, preenchimento);
+      canvas.drawPath(p, bordaEstado);
+    }
     for (final a in mapa.estados) {
       final p = _caminho(a, s);
       canvas.drawPath(p, preenchimento);

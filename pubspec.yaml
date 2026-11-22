@@ -68,6 +68,7 @@ flutter:
     - assets/mare/ilha_fiscal.json
     - assets/mare/porto_do_forno.json
     - assets/mesorregioes.json
+    - assets/estados_brasil.json
     - assets/certificados/rnp_icpedu_gr46_ov_tls_ca_2025.pem
 
   # The following line ensures that the Material Icons font is
