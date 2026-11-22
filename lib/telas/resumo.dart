@@ -92,6 +92,35 @@ String? comparacaoOntem(List<HoraChuva> horas, List<HoraChuva> passadas, DateTim
 
 /// Cartão do topo da tela Agora: frase do dia, chance na próxima hora e comparação com
 /// ontem. Tudo vem da previsão por hora (estimativa de modelo no Brasil).
+/// Risco de trovoada nas próximas 12 horas, pela energia disponível para tempestades (CAPE)
+/// e pelo código de trovoada do modelo: "Risco de trovoada: alto entre 14h e 18h".
+/// Nulo quando o risco é baixo ou não há CAPE (ex.: previsão oficial do Canadá).
+String? riscoTrovoada(List<HoraChuva> horas, DateTime agora) {
+  final proximas = horas
+      .where((h) => h.hora.isAfter(agora.subtract(const Duration(minutes: 59))))
+      .take(12)
+      .toList();
+  if (proximas.every((h) => h.cape == null)) return null;
+  int nivel(HoraChuva h) {
+    final cape = h.cape ?? 0;
+    final codigo = h.codigo ?? 0;
+    final chance = h.probabilidade ?? 0;
+    if (codigo >= 95 || (cape >= 2500 && chance >= 30)) return 2;
+    if (cape >= 1000 && chance >= 20) return 1;
+    return 0;
+  }
+
+  final niveis = [for (final h in proximas) nivel(h)];
+  final maior = niveis.fold(0, (a, b) => a > b ? a : b);
+  if (maior == 0) return null;
+  final i0 = niveis.indexOf(maior);
+  final i1 = niveis.lastIndexOf(maior);
+  final ini = proximas[i0].hora.hour;
+  final fim = proximas[i1].hora.add(const Duration(hours: 1)).hour;
+  final nome = maior == 2 ? 'alto' : 'moderado';
+  return 'Risco de trovoada: $nome entre ${ini}h e ${fim}h (estimativa).';
+}
+
 const _diasSemana = [
   'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado',
   'Domingo'
@@ -159,6 +188,7 @@ class CartaoResumo extends StatelessWidget {
     final proxima = chanceProximaHora(horas, agora);
     final ontem = comparacaoOntem(horas, passadas, agora);
     final marcante = avisoProximosDias(dias, agora, canada: canada);
+    final trovoada = riscoTrovoada(horas, agora);
     return Cartao(
       titulo: 'Resumo',
       icone: Icons.short_text,
@@ -178,6 +208,14 @@ class CartaoResumo extends StatelessWidget {
             Icon(Icons.history, size: 18, color: tema.colorScheme.primary),
             const SizedBox(width: 6),
             Expanded(child: Text(ontem)),
+          ]),
+        ],
+        if (trovoada != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            Icon(Icons.thunderstorm_outlined, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(trovoada)),
           ]),
         ],
         if (marcante != null) ...[

@@ -47,4 +47,17 @@ void main() {
     expect(avisoProximosDias([d(24, 'Sol', min: 8)], agora), 'Terça-feira: frio (mín. 8°).');
     expect(avisoProximosDias([d(24, 'Sun', min: 8)], agora, canada: true), isNull);
   });
+
+  test('risco de trovoada pela energia para tempestades', () {
+    final agora = DateTime(2026, 11, 22, 12, 10);
+    List<HoraChuva> hs(List<double> capes, {int p = 40, int codigo = 3}) => [
+          for (var i = 0; i < capes.length; i++)
+            HoraChuva(hora: DateTime(2026, 11, 22, 12 + i), cape: capes[i], probabilidade: p, codigo: codigo),
+        ];
+    expect(riscoTrovoada(hs([100, 200, 300]), agora), isNull);
+    expect(riscoTrovoada(hs([500, 1500, 1800, 300]), agora),
+        'Risco de trovoada: moderado entre 13h e 15h (estimativa).');
+    expect(riscoTrovoada(hs([3000, 3000]), agora), 'Risco de trovoada: alto entre 12h e 14h (estimativa).');
+    expect(riscoTrovoada([HoraChuva(hora: DateTime(2026, 11, 22, 13), probabilidade: 50)], agora), isNull);
+  });
 }

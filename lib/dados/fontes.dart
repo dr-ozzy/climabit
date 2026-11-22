@@ -636,8 +636,12 @@ class HoraChuva {
     this.uv,
     this.dia,
     this.ventoKmh,
+    this.cape,
   });
   final DateTime hora;
+
+  /// Energia disponível para tempestades (CAPE, J/kg), do modelo.
+  final double? cape;
 
   /// Vento médio previsto (km/h).
   final double? ventoKmh;
@@ -676,6 +680,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
   final uv = col('uv_index');
   final dia = col('is_day');
   final vento = col('wind_speed_10m');
+  final cape = col('cape');
   final r = <HoraChuva>[];
   for (var i = 0; i < horas.length; i++) {
     final t = DateTime.tryParse('${horas[i]}Z');
@@ -690,6 +695,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
       uv: i < uv.length ? _num(uv[i])?.toDouble() : null,
       dia: i < dia.length && dia[i] is num ? dia[i] == 1 : null,
       ventoKmh: i < vento.length ? _num(vento[i])?.toDouble() : null,
+      cape: i < cape.length ? _num(cape[i])?.toDouble() : null,
     ));
   }
   return r;

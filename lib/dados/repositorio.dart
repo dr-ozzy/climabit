@@ -650,7 +650,7 @@ Uri _enderecoChuvaHoraria(double lat, double lon) =>
       'latitude': lat.toStringAsFixed(2),
       'longitude': lon.toStringAsFixed(2),
       'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,'
-          'weather_code,uv_index,is_day,wind_speed_10m',
+          'weather_code,uv_index,is_day,wind_speed_10m,cape',
       // 7 dias à frente (rotinas de atividades); as telas usam as primeiras 25 horas.
       'forecast_hours': '169',
       'past_hours': '25',
