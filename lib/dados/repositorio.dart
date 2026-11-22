@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'alertas_omm.dart';
 import 'canada.dart';
 import 'cidade.dart';
 import 'fontes.dart';
@@ -272,8 +273,14 @@ class Repositorio extends ChangeNotifier {
     final diasCptec = _ler('CPTEC/INPE previsão', prevCptec, lerPrevisaoCptec) ?? [];
     previsao = combinarPrevisoes(diasInmet, diasCptec, DateTime.now());
 
-    final novosAlertas =
+    var novosAlertas =
         _ler('INMET alertas', avisos, (s) => lerAlertasInmet(s, c.geocode));
+    // INMET fora do ar (ou só a cópia antiga guardada): usa a cópia dos avisos do INMET
+    // publicada pela OMM.
+    if ((avisos == null || avisos.doCache || novosAlertas == null) && !_modoGuardado) {
+      final omm = await _alertasPelaOmm(c, semInmet: novosAlertas == null);
+      if (omm != null) novosAlertas = omm;
+    }
     if (novosAlertas != null) {
       alertas = novosAlertas;
       if (!_modoGuardado) aoObterAlertas?.call(c, novosAlertas);
@@ -441,6 +448,17 @@ class Repositorio extends ChangeNotifier {
       if (!_modoGuardado) fontes[nome] = EstadoFonte(obtidoEm: null, doCache: false, erro: '$e');
       return null;
     }
+  }
+
+  /// Avisos do INMET pela cópia da OMM, pela mesorregião da cidade. Devolve null se a OMM
+  /// também falhar, ou se só houver cópia guardada e o INMET tiver a dele ([semInmet] falso).
+  Future<List<Alerta>?> _alertasPelaOmm(Cidade c, {required bool semInmet}) async {
+    final meso = (await Mesorregioes.carregar()).de(c.geocode);
+    if (meso == null) return null;
+    const nome = 'OMM (cópia dos avisos do INMET)';
+    final r = await _consultar(nome, Uri.parse(enderecoAlertasOmm));
+    if (r == null || (r.doCache && !semInmet)) return null;
+    return _ler(nome, r, (s) => lerAlertasOmm(s, meso));
   }
 
   T? _ler<T>(String nome, RespostaFonte? r, T? Function(String) leitor) {
