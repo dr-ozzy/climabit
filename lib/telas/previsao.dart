@@ -44,6 +44,8 @@ class TelaPrevisao extends StatelessWidget {
                 'Previsão estimada por modelo (Open-Meteo), não é previsão oficial.'),
           ),
         ),
+      // Visão da semana de relance: uma linha por dia com a barra da mínima à máxima.
+      _CartaoSemana(dias: dias),
       Colunas(children: [for (final d in dias) _CartaoDia(dia: d, ondaMax: _ondaMaxima(repo.ondas, d.dia))]),
       RodapeFontes(repo: repo),
     ]);
@@ -114,6 +116,119 @@ class _CartaoDia extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+final _diaCurto = DateFormat('EEE, d', 'pt_BR');
+
+/// Semana de relance: dia, ícone, chance de chuva e a barra da mínima à máxima. A barra
+/// fica na posição certa dentro da faixa da semana (ideia de outros apps de clima).
+class _CartaoSemana extends StatelessWidget {
+  const _CartaoSemana({required this.dias});
+
+  final List<DiaPrevisao> dias;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final comFaixa = dias.where((d) => d.minima != null && d.maxima != null).toList();
+    if (comFaixa.length < 2) return const SizedBox.shrink();
+    final menor = comFaixa.map((d) => d.minima!).reduce((a, b) => a < b ? a : b);
+    final maior = comFaixa.map((d) => d.maxima!).reduce((a, b) => a > b ? a : b);
+    final agora = DateTime.now();
+    return Cartao(
+      titulo: 'A semana',
+      icone: Icons.calendar_view_week,
+      children: [
+        for (final d in comFaixa)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              SizedBox(
+                width: 64,
+                child: Text(
+                  DateUtils.isSameDay(d.dia, agora)
+                      ? 'Hoje'
+                      : toBeginningOfSentenceCase(_diaCurto.format(d.dia)),
+                  style: tema.textTheme.labelLarge,
+                ),
+              ),
+              simboloTempo(d.resumo, size: 22, color: tema.colorScheme.primary),
+              SizedBox(
+                width: 46,
+                child: Text(
+                  d.probabilidadeChuva == null ? '' : '${d.probabilidadeChuva} %',
+                  textAlign: TextAlign.end,
+                  style: tema.textTheme.labelMedium?.copyWith(
+                      color: (d.probabilidadeChuva ?? 0) >= 50
+                          ? const Color(0xFF3D8BE0)
+                          : tema.colorScheme.onSurfaceVariant),
+                ),
+              ),
+              SizedBox(
+                width: 36,
+                child: Text('${d.minima}°',
+                    textAlign: TextAlign.end, style: tema.textTheme.bodyMedium),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _BarraFaixa(min: d.minima!, max: d.maxima!, de: menor, ate: maior)),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 32,
+                child: Text('${d.maxima}°',
+                    style: tema.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          ),
+      ],
+    );
+  }
+}
+
+/// Barra de [min] a [max] dentro da faixa [de]–[ate] da semana; a cor vai do azul (frio)
+/// ao laranja (quente) conforme a temperatura.
+class _BarraFaixa extends StatelessWidget {
+  const _BarraFaixa({required this.min, required this.max, required this.de, required this.ate});
+
+  final int min;
+  final int max;
+  final int de;
+  final int ate;
+
+  static Color _cor(int t) {
+    // 10 °C ou menos: azul; 35 °C ou mais: vermelho-alaranjado.
+    final f = ((t - 10) / 25).clamp(0.0, 1.0);
+    return Color.lerp(const Color(0xFF4FA3E0), const Color(0xFFF2994A), f * 1.0)!
+        .withValues(alpha: 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fundo = Theme.of(context).colorScheme.surfaceContainerHighest;
+    final total = (ate - de).clamp(1, 100);
+    return LayoutBuilder(builder: (context, c) {
+      final x0 = c.maxWidth * (min - de) / total;
+      final x1 = c.maxWidth * (max - de) / total;
+      return SizedBox(
+        height: 8,
+        child: Stack(children: [
+          Container(
+              decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(4))),
+          Positioned(
+            left: x0,
+            width: (x1 - x0).clamp(8.0, c.maxWidth),
+            top: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(colors: [_cor(min), _cor(max)]),
+              ),
+            ),
+          ),
+        ]),
+      );
+    });
   }
 }
 

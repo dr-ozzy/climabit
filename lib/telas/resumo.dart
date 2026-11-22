@@ -1,0 +1,148 @@
+import 'package:material_ui/material_ui.dart';
+
+import '../dados/fontes.dart';
+import '../util/formatos.dart';
+import 'ceu.dart';
+import 'componentes.dart';
+
+/// Chance de chuva a partir da qual a hora conta como "com chuva" no resumo.
+const _limiarChance = 30;
+
+/// Tipo de chuva pelo código do tempo (WMO) da hora.
+String _tipoChuva(int? codigo) => switch (codigo ?? 61) {
+      >= 95 => 'trovoadas',
+      >= 80 && <= 82 => 'pancadas de chuva',
+      >= 51 && <= 57 => 'garoa',
+      >= 71 && <= 77 || 85 || 86 => 'neve',
+      _ => 'chuva',
+    };
+
+bool _chuvosa(HoraChuva h) => (h.probabilidade ?? 0) >= _limiarChance;
+
+/// Frase de uma linha sobre as próximas 12 horas, ao estilo "Ensolarado até as 17h;
+/// pancadas de chuva a partir das 18h." (ideia tirada de outros apps de clima; o texto
+/// é do ClimaBit). [ceu] é o céu de agora; [horas] começa na hora atual.
+String fraseResumo(EstadoCeu? ceu, bool noite, List<HoraChuva> horas, DateTime agora) {
+  final proximas = horas.where((h) => h.hora.isAfter(agora.subtract(const Duration(minutes: 59))))
+      .take(12)
+      .toList();
+  final chovendo = ceu == EstadoCeu.chuva || ceu == EstadoCeu.trovoada;
+  final String frase;
+  if (chovendo) {
+    final para = proximas.skip(1).where((h) => !_chuvosa(h)).firstOrNull;
+    frase = para == null
+        ? '${nomeCeu(ceu!, noite)} agora; a chuva deve continuar nas próximas horas.'
+        : '${nomeCeu(ceu!, noite)} agora; deve melhorar por volta das ${para.hora.hour}h.';
+  } else {
+    final chuva = proximas.where(_chuvosa).firstOrNull;
+    final ceuTexto = ceu == null ? 'Sem chuva' : nomeCeu(ceu, noite);
+    if (chuva == null) {
+      frase = '$ceuTexto, sem chuva prevista nas próximas 12 horas.';
+    } else if (!chuva.hora.isAfter(agora.add(const Duration(minutes: 30)))) {
+      final tipo = _tipoChuva(chuva.codigo);
+      frase = '${tipo[0].toUpperCase()}${tipo.substring(1)} possível a qualquer momento '
+          '(${chuva.probabilidade} %).';
+    } else {
+      final antes = chuva.hora.subtract(const Duration(hours: 1));
+      frase = '$ceuTexto até as ${antes.hour}h; ${_tipoChuva(chuva.codigo)} '
+          'a partir das ${chuva.hora.hour}h (${chuva.probabilidade} %).';
+    }
+  }
+  // Calor forte nas próximas horas.
+  final quentes = proximas.where((h) => h.temperatura != null).toList();
+  if (quentes.isNotEmpty) {
+    final pico = quentes.reduce((a, b) => b.temperatura! > a.temperatura! ? b : a);
+    if (pico.temperatura! >= 35) {
+      return '$frase Calor forte: até ${inteiro(pico.temperatura)}° às ${pico.hora.hour}h.';
+    }
+  }
+  return frase;
+}
+
+/// "Chance de chuva na próxima hora: 7 %", ou nulo sem dado.
+String? chanceProximaHora(List<HoraChuva> horas, DateTime agora) {
+  final h = horas.where((h) => h.hora.isAfter(agora)).firstOrNull;
+  if (h?.probabilidade == null) return null;
+  return 'Chance de chuva na próxima hora: ${h!.probabilidade} %';
+}
+
+/// Comparação com a mesma hora de ontem, pelo mesmo modelo (Open-Meteo):
+/// "3° mais quente que ontem a esta hora". Nulo quando falta a hora de ontem.
+String? comparacaoOntem(List<HoraChuva> horas, List<HoraChuva> passadas, DateTime agora) {
+  HoraChuva? perto(List<HoraChuva> l, DateTime alvo) {
+    HoraChuva? melhor;
+    for (final h in l) {
+      if (h.temperatura == null) continue;
+      final d = h.hora.difference(alvo).inMinutes.abs();
+      if (d <= 40 && (melhor == null || d < melhor.hora.difference(alvo).inMinutes.abs())) {
+        melhor = h;
+      }
+    }
+    return melhor;
+  }
+
+  final hoje = perto(horas, agora) ?? perto(passadas, agora);
+  final ontem = perto(passadas, agora.subtract(const Duration(hours: 24)));
+  if (hoje == null || ontem == null) return null;
+  final dif = hoje.temperatura! - ontem.temperatura!;
+  if (dif.abs() < 1.5) return 'Temperatura parecida com a de ontem a esta hora.';
+  final graus = dif.abs().round();
+  return '$graus° ${dif > 0 ? 'mais quente' : 'mais frio'} que ontem a esta hora.';
+}
+
+/// Cartão do topo da tela Agora: frase do dia, chance na próxima hora e comparação com
+/// ontem. Tudo vem da previsão por hora (estimativa de modelo no Brasil).
+class CartaoResumo extends StatelessWidget {
+  const CartaoResumo({
+    super.key,
+    required this.ceu,
+    required this.noite,
+    required this.horas,
+    required this.passadas,
+    required this.agora,
+    this.oficial = false,
+  });
+
+  final EstadoCeu? ceu;
+  final bool noite;
+  final List<HoraChuva> horas;
+  final List<HoraChuva> passadas;
+  final DateTime agora;
+
+  /// Previsão por hora oficial (Canadá).
+  final bool oficial;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final proxima = chanceProximaHora(horas, agora);
+    final ontem = comparacaoOntem(horas, passadas, agora);
+    return Cartao(
+      titulo: 'Resumo',
+      icone: Icons.short_text,
+      children: [
+        Text(fraseResumo(ceu, noite, horas, agora), style: tema.textTheme.titleMedium),
+        if (proxima != null) ...[
+          const SizedBox(height: 6),
+          Row(children: [
+            Icon(Icons.water_drop_outlined, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(proxima)),
+          ]),
+        ],
+        if (ontem != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            Icon(Icons.history, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(ontem)),
+          ]),
+        ],
+        const SizedBox(height: 6),
+        Fonte(oficial
+            ? 'previsão por hora do Environment and Climate Change Canada'
+            : 'céu de agora: medição; próximas horas e ontem: Open-Meteo (modelo, estimativa)'),
+      ],
+    );
+  }
+}

@@ -635,8 +635,12 @@ class HoraChuva {
     this.sensacao,
     this.uv,
     this.dia,
+    this.ventoKmh,
   });
   final DateTime hora;
+
+  /// Vento médio previsto (km/h).
+  final double? ventoKmh;
 
   /// Temperatura prevista (°C).
   final double? temperatura;
@@ -671,6 +675,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
   final aparente = col('apparent_temperature');
   final uv = col('uv_index');
   final dia = col('is_day');
+  final vento = col('wind_speed_10m');
   final r = <HoraChuva>[];
   for (var i = 0; i < horas.length; i++) {
     final t = DateTime.tryParse('${horas[i]}Z');
@@ -684,6 +689,7 @@ List<HoraChuva> lerChuvaHoraria(String corpo) {
       sensacao: i < aparente.length ? _num(aparente[i])?.toDouble() : null,
       uv: i < uv.length ? _num(uv[i])?.toDouble() : null,
       dia: i < dia.length && dia[i] is num ? dia[i] == 1 : null,
+      ventoKmh: i < vento.length ? _num(vento[i])?.toDouble() : null,
     ));
   }
   return r;

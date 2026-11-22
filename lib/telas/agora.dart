@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:material_ui/material_ui.dart';
 
 import '../dados/astro.dart';
@@ -13,6 +14,7 @@ import '../util/formatos.dart';
 import 'aviso_atualizacao.dart';
 import 'ceu.dart';
 import 'componentes.dart';
+import 'resumo.dart';
 
 /// Tela inicial: medição de agora, chuva (agora e hoje), próximas horas e mar.
 class TelaAgora extends StatelessWidget {
@@ -76,6 +78,16 @@ class TelaAgora extends StatelessWidget {
 
     // Ordem pedida pelo usuário: Vai chover hoje?, hora em hora, Detalhes, Sol e lua, Mar.
     final cartoes = <Widget>[
+      // Frase do dia, chuva na próxima hora e comparação com ontem (ideias de outros apps).
+      if (repo.chuvaHoraria.isNotEmpty)
+        CartaoResumo(
+          ceu: ceuAgora,
+          noite: noite,
+          horas: repo.chuvaHoraria,
+          passadas: repo.horasPassadas,
+          agora: agora,
+          oficial: repo.horasOficiais,
+        ),
       if (repo.previsao.isNotEmpty) _CartaoChuva(repo: repo, agora: agora, hoje: hoje),
       if (repo.chuvaHoraria.isNotEmpty)
         _CartaoProximasHoras(horas: repo.chuvaHoraria, oficial: repo.horasOficiais),
@@ -507,13 +519,26 @@ class _CartaoMar extends StatelessWidget {
 
 /// Próximas 24 horas (Open-Meteo, estimativa): temperatura, chuva e UV de hora em hora.
 /// Não há fonte oficial brasileira com previsão por hora.
-class _CartaoProximasHoras extends StatelessWidget {
+/// O que a linha do gráfico das próximas horas mostra (abas do cartão).
+enum _Linha { temperatura, sensacao, chuva, vento }
+
+class _CartaoProximasHoras extends StatefulWidget {
   const _CartaoProximasHoras({required this.horas, this.oficial = false});
 
   final List<HoraChuva> horas;
 
   /// Previsão por hora oficial (Canadá) em vez de estimativa.
   final bool oficial;
+
+  @override
+  State<_CartaoProximasHoras> createState() => _CartaoProximasHorasState();
+}
+
+class _CartaoProximasHorasState extends State<_CartaoProximasHoras> {
+  var _linha = _Linha.temperatura;
+
+  List<HoraChuva> get horas => widget.horas;
+  bool get oficial => widget.oficial;
 
   @override
   Widget build(BuildContext context) {
@@ -550,7 +575,30 @@ class _CartaoProximasHoras extends StatelessWidget {
       children: [
         if (faixa != null) Text(faixa, style: tema.textTheme.titleMedium),
         Text(chuva),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
+        // Abas: o que a linha mostra (ideia de outros apps de clima).
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            for (final (l, nome) in [
+              (_Linha.temperatura, 'Temperatura'),
+              (_Linha.sensacao, 'Sensação'),
+              (_Linha.chuva, 'Chuva (mm)'),
+              (_Linha.vento, 'Vento (km/h)'),
+            ])
+              if (lista.any((h) => _valor(h, l) != null))
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(nome),
+                    selected: _linha == l,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _linha = l),
+                  ),
+                ),
+          ]),
+        ),
+        const SizedBox(height: 10),
         // Quadradinhos por hora com a linha da temperatura passando por dentro, no alto
         // deles (mistura dos dois estilos que o usuário mostrou).
         SingleChildScrollView(
@@ -569,7 +617,14 @@ class _CartaoProximasHoras extends StatelessWidget {
                 child: CustomPaint(
                   size: Size(lista.length * _passoHora - 6, _alturaGrafico),
                   painter: _PintorTemperaturas(
-                    temps: [for (final h in lista) h.temperatura],
+                    temps: [for (final h in lista) _valor(h, _linha)],
+                    rotulo: switch (_linha) {
+                      _Linha.chuva => (v) => v == 0 ? '0' : decimal(v),
+                      _Linha.vento => (v) => '${v.round()}',
+                      _ => (v) => '${v.round()}°',
+                    },
+                    // Chuva: a linha começa no zero (sem chuva fica embaixo).
+                    minimo: _linha == _Linha.chuva ? 0 : null,
                     linha: tema.colorScheme.primary,
                     texto: tema.textTheme.titleSmall!.copyWith(
                         color: tema.colorScheme.onSurface, fontWeight: FontWeight.w600),
@@ -591,6 +646,14 @@ class _CartaoProximasHoras extends StatelessWidget {
   }
 }
 
+/// Valor da hora para a aba escolhida.
+double? _valor(HoraChuva h, _Linha l) => switch (l) {
+      _Linha.temperatura => h.temperatura,
+      _Linha.sensacao => h.sensacao,
+      _Linha.chuva => h.milimetros?.toDouble(),
+      _Linha.vento => h.ventoKmh,
+    };
+
 /// Largura de cada hora (coluna de 62 + espaço de 6), igual no gráfico e nas colunas.
 const double _passoHora = 68;
 
@@ -599,9 +662,21 @@ const double _alturaGrafico = 88;
 
 /// Linha das temperaturas das próximas horas, com o valor sobre cada ponto.
 class _PintorTemperaturas extends CustomPainter {
-  _PintorTemperaturas({required this.temps, required this.linha, required this.texto});
+  _PintorTemperaturas({
+    required this.temps,
+    required this.linha,
+    required this.texto,
+    required this.rotulo,
+    this.minimo,
+  });
 
   final List<double?> temps;
+
+  /// Texto sobre cada ponto ("31°", "2,5", "18").
+  final String Function(double) rotulo;
+
+  /// Valor que fica na base do gráfico (chuva: zero); nulo = menor valor da lista.
+  final double? minimo;
   final Color linha;
   final TextStyle texto;
 
@@ -609,8 +684,9 @@ class _PintorTemperaturas extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final validos = temps.whereType<double>().toList();
     if (validos.isEmpty) return;
-    final menor = validos.reduce(math.min);
-    final maior = validos.reduce(math.max);
+    final menor = minimo ?? validos.reduce(math.min);
+    // Faixa mínima, para variações pequenas não parecerem enormes.
+    final maior = math.max(validos.reduce(math.max), menor + (minimo == null ? 4 : 1));
     const topo = 30.0; // espaço para o número acima do ponto mais alto
     const base = 10.0;
     final alturaUtil = size.height - topo - base;
@@ -664,7 +740,7 @@ class _PintorTemperaturas extends CustomPainter {
       if (p == null) continue;
       canvas.drawCircle(p, 3.5, Paint()..color = linha);
       final tp = TextPainter(
-        text: TextSpan(text: '${temps[i]!.round()}°', style: texto),
+        text: TextSpan(text: rotulo(temps[i]!), style: texto),
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(p.dx - tp.width / 2, p.dy - tp.height - 4));
@@ -673,7 +749,7 @@ class _PintorTemperaturas extends CustomPainter {
 
   @override
   bool shouldRepaint(_PintorTemperaturas antigo) =>
-      antigo.temps != temps || antigo.linha != linha || antigo.texto != texto;
+      !listEquals(antigo.temps, temps) || antigo.linha != linha || antigo.texto != texto;
 }
 
 class _ColunaHora extends StatelessWidget {

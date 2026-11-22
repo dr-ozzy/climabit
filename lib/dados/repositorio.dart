@@ -102,6 +102,9 @@ class Repositorio extends ChangeNotifier {
   /// oficial brasileira por hora).
   List<HoraChuva> chuvaHoraria = [];
 
+  /// Últimas 24 horas do mesmo modelo (Open-Meteo), para comparar agora com ontem.
+  List<HoraChuva> horasPassadas = [];
+
   /// A previsão por hora é oficial (Canadá) e não estimativa de modelo.
   bool horasOficiais = false;
   bool previsaoEstimada = false;
@@ -126,6 +129,7 @@ class Repositorio extends ChangeNotifier {
     ventoEstimado = null;
     previsaoEstimada = false;
     chuvaHoraria = [];
+    horasPassadas = [];
     fontes.clear();
     notifyListeners();
     await atualizar();
@@ -280,7 +284,12 @@ class Repositorio extends ChangeNotifier {
       ...?_ler('Alerta Rio', alertaRio, lerPluviometrosAlertaRio),
     ];
 
-    chuvaHoraria = _ler('Open-Meteo (por hora)', resultados[11], lerChuvaHoraria) ?? [];
+    // A consulta traz também as 24 horas passadas (para "comparado com ontem"); o resto
+    // do app usa só a hora atual em diante.
+    final todasHoras = _ler('Open-Meteo (por hora)', resultados[11], lerChuvaHoraria) ?? [];
+    final corte = DateTime.now().subtract(const Duration(minutes: 59));
+    chuvaHoraria = todasHoras.where((h) => h.hora.isAfter(corte)).toList();
+    horasPassadas = todasHoras.where((h) => !h.hora.isAfter(corte)).toList();
 
     await _completarComOpenMeteo(c);
     if (c != _cidade) {
@@ -309,6 +318,7 @@ class Repositorio extends ChangeNotifier {
     ceuAeroporto = null;
     previsao = d?.dias ?? [];
     chuvaHoraria = d?.horas ?? [];
+    horasPassadas = [];
     horasOficiais = chuvaHoraria.isNotEmpty;
     final novos = d?.alertas;
     if (novos != null) alertas = novos;
@@ -602,7 +612,8 @@ Uri _enderecoChuvaHoraria(double lat, double lon) =>
       'latitude': lat.toStringAsFixed(2),
       'longitude': lon.toStringAsFixed(2),
       'hourly': 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,'
-          'weather_code,uv_index,is_day',
-      'forecast_hours': '24',
+          'weather_code,uv_index,is_day,wind_speed_10m',
+      'forecast_hours': '25',
+      'past_hours': '25',
       'timezone': 'GMT',
     });
