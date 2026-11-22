@@ -82,6 +82,12 @@ class Astro {
   static NascerPor sol(DateTime dia, double lat, double lon) =>
       _cruzamentos(dia, (t) => altitudeSol(t, lat, lon) + 0.833);
 
+  /// Quando o sol passa pela [altitude] (graus) subindo (manhã) e descendo (tarde) no dia
+  /// local de [dia]. −6° = primeira e última luz (crepúsculo civil); entre −6° e −4° = hora
+  /// azul; entre −4° e +6° = hora dourada.
+  static NascerPor solNaAltitude(DateTime dia, double lat, double lon, double altitude) =>
+      _cruzamentos(dia, (t) => altitudeSol(t, lat, lon) - altitude);
+
   /// Nascer e pôr da lua no dia local de [dia] (borda superior, com refração e paralaxe).
   static NascerPor lua(DateTime dia, double lat, double lon) => _cruzamentos(dia, (t) {
         final (alt, par) = _lua(t, lat, lon);

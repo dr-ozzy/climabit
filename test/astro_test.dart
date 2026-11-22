@@ -29,6 +29,23 @@ void main() {
     perto(l3.por, DateTime.utc(2026, 11, 3, 16, 6), 4);
   });
 
+  test('primeira e última luz, hora azul e hora dourada em ordem', () {
+    final s = Astro.sol(dia, lat, lon);
+    final luz = Astro.solNaAltitude(dia, lat, lon, -6);
+    final m4 = Astro.solNaAltitude(dia, lat, lon, -4);
+    final p6 = Astro.solNaAltitude(dia, lat, lon, 6);
+    // No Rio, em novembro, o crepúsculo civil dura cerca de 23 minutos.
+    final antes = s.nascer!.difference(luz.nascer!).inMinutes;
+    final depois = luz.por!.difference(s.por!).inMinutes;
+    expect(antes, inInclusiveRange(18, 30));
+    expect(depois, inInclusiveRange(18, 30));
+    expect(luz.nascer!.isBefore(m4.nascer!), isTrue);
+    expect(m4.nascer!.isBefore(s.nascer!), isTrue);
+    expect(s.nascer!.isBefore(p6.nascer!), isTrue);
+    expect(p6.por!.isBefore(s.por!), isTrue);
+    expect(m4.por!.isBefore(luz.por!), isTrue);
+  });
+
   test('dia e noite', () {
     expect(Astro.noite(DateTime.utc(2026, 11, 14, 15), lat, lon), isFalse);
     expect(Astro.noite(DateTime.utc(2026, 11, 15, 2), lat, lon), isTrue);

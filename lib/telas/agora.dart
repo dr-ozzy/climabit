@@ -878,6 +878,16 @@ class _CartaoSolLua extends StatelessWidget {
       final min = sol.por!.difference(sol.nascer!).inMinutes;
       duracao = 'Duração do dia: ${min ~/ 60} h ${min % 60} min';
     }
+    final luz = Astro.solNaAltitude(agora, lat, lon, -6);
+    final menos4 = Astro.solNaAltitude(agora, lat, lon, -4);
+    final mais6 = Astro.solNaAltitude(agora, lat, lon, 6);
+    String faixa(DateTime? a, DateTime? b) =>
+        a == null || b == null ? '' : '${hora(a)}–${hora(b)}';
+    String juntar(String manha, String tarde) =>
+        [manha, tarde].where((x) => x.isNotEmpty).join(' e ');
+    final horaAzul = juntar(faixa(luz.nascer, menos4.nascer), faixa(menos4.por, luz.por));
+    final horaDourada =
+        juntar(faixa(menos4.nascer, mais6.nascer), faixa(mais6.por, menos4.por));
     final luaPequena = DesenhoLua(idade: idadeLua, size: 20);
     return Cartao(
       titulo: 'Sol e lua',
@@ -886,12 +896,21 @@ class _CartaoSolLua extends StatelessWidget {
         GradeDados(children: [
           Dado(icone: Icons.wb_sunny_outlined, rotulo: 'Nascer do sol', valor: h(sol.nascer)),
           Dado(icone: Icons.wb_twilight, rotulo: 'Pôr do sol', valor: h(sol.por)),
+          Dado(icone: Icons.light_mode_outlined, rotulo: 'Primeira luz', valor: h(luz.nascer)),
+          Dado(icone: Icons.nights_stay_outlined, rotulo: 'Última luz', valor: h(luz.por)),
           Dado(desenho: luaPequena, rotulo: 'Nascer da lua', valor: h(lua.nascer)),
           Dado(desenho: luaPequena, rotulo: 'Pôr da lua', valor: h(lua.por)),
         ]),
         if (duracao != null) ...[
           const SizedBox(height: 10),
           Text(duracao),
+        ],
+        if (horaDourada.isNotEmpty || horaAzul.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          if (horaDourada.isNotEmpty)
+            Text('Hora dourada (luz baixa e quente): $horaDourada'),
+          if (horaAzul.isNotEmpty)
+            Text('Hora azul (céu azul-escuro, antes do nascer e depois do pôr): $horaAzul'),
         ],
         const SizedBox(height: 12),
         Row(children: [
@@ -910,6 +929,8 @@ class _CartaoSolLua extends StatelessWidget {
         const SizedBox(height: 12),
         const Fonte('calculado pelo app com a posição do sol e da lua (fórmulas do '
             'Astronomical Almanac), para a sede do município. Erro típico: 1 a 3 minutos. '
+            'Primeira e última luz: sol 6° abaixo do horizonte. Hora azul: sol entre 6° e 4° '
+            'abaixo; hora dourada: entre 4° abaixo e 6° acima. '
             'A lua aparece como vista do hemisfério sul.'),
       ],
     );
