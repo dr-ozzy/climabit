@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:material_ui/material_ui.dart';
 
+import '../dados/erros.dart';
 import '../dados/astro.dart';
 import '../dados/chuva_prevista.dart';
 import '../dados/cidade.dart';
@@ -195,7 +196,8 @@ class _CartaoMedicao extends StatelessWidget {
         icone: Icons.thermostat,
         children: [
           Text(estado?.falhou == true
-              ? 'A estação do INMET não respondeu. Puxe a tela para baixo para tentar de novo.'
+              ? 'A estação do INMET não respondeu (${causaDoErro(estado?.erro)}). '
+                  'Puxe a tela para baixo para tentar de novo.'
               : 'Carregando…'),
         ],
       );

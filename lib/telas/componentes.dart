@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../dados/erros.dart';
 import '../dados/fontes.dart';
 import '../dados/repositorio.dart';
 import '../util/formatos.dart';
@@ -504,7 +505,7 @@ class RodapeFontes extends StatelessWidget {
         for (final p in problemas)
           Text(
             p.value.falhou
-                ? '${p.key}: sem resposta'
+                ? '${p.key}: ${causaDoErro(p.value.erro)}'
                 : '${p.key}: sem conexão, usando dado de ${quando(p.value.obtidoEm!)}',
             style: estilo?.copyWith(color: tema.colorScheme.error),
             textAlign: TextAlign.center,

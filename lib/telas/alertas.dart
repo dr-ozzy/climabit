@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../dados/erros.dart';
 import '../dados/fontes.dart';
 import '../dados/repositorio.dart';
 import '../util/formatos.dart';
@@ -38,7 +39,8 @@ class TelaAlertas extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                         estado?.falhou == true
-                            ? 'O INMET não respondeu. Puxe a tela para baixo para tentar de novo.'
+                            ? 'O INMET não respondeu (${causaDoErro(estado?.erro)}). '
+                                'Puxe a tela para baixo para tentar de novo.'
                             : 'Nenhum alerta oficial do INMET para ${repo.cidade.nome} agora.',
                         textAlign: TextAlign.center,
                         style: tema.textTheme.titleMedium,
