@@ -13,6 +13,7 @@ import '../dados/mare.dart';
 import '../dados/repositorio.dart';
 import '../util/formatos.dart';
 import 'bons_horarios.dart';
+import 'escolher_estacao.dart';
 import 'aviso_atualizacao.dart';
 import 'ceu.dart';
 import 'componentes.dart';
@@ -106,7 +107,9 @@ class TelaAgora extends StatelessWidget {
           reserva: repo.medicaoReserva,
           hoje: hoje,
           horas: repo.chuvaHoraria,
-          cidade: repo.cidade),
+          cidade: repo.cidade,
+          aoTrocarEstacao:
+              repo.cidade.noCanada ? null : () => escolherEstacao(context, repo)),
       if (lat != null && lon != null) _CartaoSolLua(agora: agora, lat: lat, lon: lon),
       if (repo.ondas.isNotEmpty || estacaoMare != null)
         _CartaoMar(ondas: repo.ondas, agora: agora, estacao: estacaoMare, cidade: repo.cidade),
@@ -161,7 +164,11 @@ class _CartaoMedicao extends StatelessWidget {
     this.reserva,
     this.hoje,
     this.horas = const [],
+    this.aoTrocarEstacao,
   });
+
+  /// Abre a escolha da estação do INMET (só no Brasil).
+  final VoidCallback? aoTrocarEstacao;
 
   /// Próximas horas (estimativa): índice UV quando não há UV oficial.
   final List<HoraChuva> horas;
@@ -345,6 +352,15 @@ class _CartaoMedicao extends StatelessWidget {
                 '${reserva!.distanciaKm != null ? ', a ${inteiro(reserva!.distanciaKm)} km' : ''}'
                 ': ${comUnidade(reserva!.temperatura, '°C', decimais: true)} às ${quando(reserva!.hora)}'),
         ],
+        if (aoTrocarEstacao != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: aoTrocarEstacao,
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: const Text('Trocar estação'),
+            ),
+          ),
         if (hoje != null && (hoje!.maxima != null || hoje!.minima != null))
           Fonte('máxima e mínima: previsão ${hoje!.fonte}'
               '${m.uv == null && hoje!.uv != null ? ' · UV: ${hoje!.fonte == 'INMET' ? 'CPTEC/INPE' : hoje!.fonte}' : ''}'),

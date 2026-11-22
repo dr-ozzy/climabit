@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'alertas_omm.dart';
 import 'canada.dart';
+import 'estacoes.dart';
 import 'cidade.dart';
 import 'fontes.dart';
 import 'http_cache.dart';
@@ -231,6 +232,13 @@ class Repositorio extends ChangeNotifier {
 
     medicao = _ler('INMET estação', estacao, (s) => lerEstacaoInmet(s)) ?? medicao;
     // O INMET mede a distância a partir de um ponto próprio; recalcula a partir da sede.
+    // Estação escolhida pelo usuário (Detalhes de agora › Trocar estação), se tiver medição
+    // recente; senão, fica a automática.
+    final escolhida = c.noCanada ? null : await estacaoEscolhida(c.geocode);
+    if (escolhida != null && !_modoGuardado && escolhida.$1 != medicao?.codigo) {
+      final m = await medirEscolhida(escolhida, _http);
+      if (m != null && medicaoOficialValida(m, DateTime.now())) medicao = m;
+    }
     if (medicao != null && c.latitude != null && c.longitude != null) {
       medicao = comDistanciaDe(medicao!, c.latitude!, c.longitude!);
     }
