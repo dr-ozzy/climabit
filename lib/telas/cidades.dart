@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
 import '../dados/cidade.dart';
@@ -22,6 +25,54 @@ class _TelaCidadesState extends State<TelaCidades> {
   Municipios? _municipios;
   List<Cidade> _salvas = [];
   bool _localizando = false;
+
+  // Busca pelo CEP (ViaCEP, serviço público e gratuito; só o CEP sai do celular).
+  String? _cep;
+  Cidade? _cidadeCep;
+  String? _erroCep;
+  bool _buscandoCep = false;
+
+  /// Só números e hífen, com pelo menos 5 números: o texto é um CEP.
+  static String? _soNumerosCep(String t) {
+    final limpo = t.trim();
+    if (!RegExp(r'^[0-9.\- ]+$').hasMatch(limpo)) return null;
+    final n = limpo.replaceAll(RegExp(r'[^0-9]'), '');
+    return n.length >= 5 ? n : null;
+  }
+
+  void _aoDigitar(String t) {
+    setState(() {});
+    final n = _soNumerosCep(t);
+    if (n != null && n.length == 8 && n != _cep) _buscarCep(n);
+  }
+
+  Future<void> _buscarCep(String cep) async {
+    setState(() {
+      _cep = cep;
+      _cidadeCep = null;
+      _erroCep = null;
+      _buscandoCep = true;
+    });
+    String? erro;
+    Cidade? achada;
+    try {
+      final r = await http
+          .get(Uri.parse('https://viacep.com.br/ws/$cep/json/'))
+          .timeout(const Duration(seconds: 15));
+      final j = r.statusCode == 200 ? jsonDecode(utf8.decode(r.bodyBytes)) : null;
+      final ibge = j is Map ? int.tryParse('${j['ibge'] ?? ''}') : null;
+      achada = ibge == null ? null : _municipios?.porGeocode(ibge);
+      if (achada == null) erro = 'CEP não encontrado.';
+    } catch (_) {
+      erro = 'Não foi possível consultar o CEP agora. Confira a internet.';
+    }
+    if (!mounted || _cep != cep) return;
+    setState(() {
+      _cidadeCep = achada;
+      _erroCep = erro;
+      _buscandoCep = false;
+    });
+  }
 
   @override
   void initState() {
@@ -84,7 +135,8 @@ class _TelaCidadesState extends State<TelaCidades> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
     final texto = _busca.text;
-    final resultados = _municipios?.buscar(texto) ?? [];
+    final cep = _soNumerosCep(texto);
+    final resultados = cep != null ? <Cidade>[] : (_municipios?.buscar(texto) ?? []);
     final atual = widget.repo.cidade;
 
     return Scaffold(
@@ -97,11 +149,11 @@ class _TelaCidadesState extends State<TelaCidades> {
             children: [
               TextField(
                 controller: _busca,
-                onChanged: (_) => setState(() {}),
+                onChanged: _aoDigitar,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
-                  hintText: 'Buscar cidade do Brasil',
+                  hintText: 'Buscar cidade (nome ou CEP)',
                   border: const OutlineInputBorder(),
                   suffixIcon: texto.isEmpty
                       ? null
@@ -113,7 +165,32 @@ class _TelaCidadesState extends State<TelaCidades> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (texto.trim().length >= 2) ...[
+              if (cep != null) ...[
+                if (cep.length < 8)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Digite os 8 números do CEP.', textAlign: TextAlign.center),
+                  )
+                else if (_buscandoCep)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_cidadeCep != null)
+                  ListTile(
+                    leading: const Icon(Icons.markunread_mailbox_outlined),
+                    title: Text(_cidadeCep!.nome),
+                    subtitle: Text('${_cidadeCep!.uf} · CEP ${cep.substring(0, 5)}-${cep.substring(5)}'),
+                    onTap: () => _escolher(_cidadeCep!),
+                  )
+                else if (_erroCep != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(_erroCep!, textAlign: TextAlign.center),
+                  ),
+                Text('Para buscar pelo CEP, o app envia só o CEP ao ViaCEP (serviço público).',
+                    style: tema.textTheme.bodySmall, textAlign: TextAlign.center),
+              ] else if (texto.trim().length >= 2) ...[
                 if (_municipios == null)
                   const Padding(
                     padding: EdgeInsets.all(24),
