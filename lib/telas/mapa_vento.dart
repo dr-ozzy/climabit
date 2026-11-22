@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -32,12 +33,52 @@ class MapaVento extends StatefulWidget {
 class _MapaVentoState extends State<MapaVento> {
   GradeVento? _grade;
   bool _carregando = true;
-  final int _hora = 0;
+
+  /// Hora mostrada: 0 = agora; fracionária durante a animação (1,5 = entre a 2ª e a 3ª).
+  double _hora = 0;
+  Timer? _animacao;
+  int _pausaNoFim = 0;
+
+  /// A animação percorre as 12 horas em cerca de 18 segundos.
+  static const _quadro = Duration(milliseconds: 40);
+  static const _horasPorQuadro = 12 / 18 * 0.04;
 
   @override
   void initState() {
     super.initState();
     _carregar();
+  }
+
+  @override
+  void dispose() {
+    _animacao?.cancel();
+    super.dispose();
+  }
+
+  void _tocar() {
+    final g = _grade;
+    if (g == null || g.horas.length < 2) return;
+    final ultima = (g.horas.length - 1).toDouble();
+    if (_hora >= ultima) _hora = 0;
+    _animacao = Timer.periodic(_quadro, (_) {
+      setState(() {
+        if (_hora >= ultima) {
+          // Fica 1 segundo na última hora e recomeça do "agora".
+          if (++_pausaNoFim > 25) {
+            _pausaNoFim = 0;
+            _hora = 0;
+          }
+        } else {
+          _hora = math.min(ultima, _hora + _horasPorQuadro);
+        }
+      });
+    });
+    setState(() {});
+  }
+
+  void _parar() {
+    _animacao?.cancel();
+    _animacao = null;
   }
 
   Future<void> _carregar() async {
@@ -74,7 +115,11 @@ class _MapaVentoState extends State<MapaVento> {
     final noMapa = RadarSumare().area.contem(c.latitude!, c.longitude!);
     final terra = tema.colorScheme.surfaceContainerHighest;
     final (cx, cy) = area.posicao(c.latitude!, c.longitude!);
-    final ventoCidade = grade?.ventoEm(cx, cy, _hora.toDouble());
+    final ventoCidade = grade?.ventoEm(cx, cy, _hora);
+    final horaInteira = grade == null
+        ? 0
+        : _hora.round().clamp(0, grade.horas.length - 1);
+    final tocando = _animacao != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -106,7 +151,7 @@ class _MapaVentoState extends State<MapaVento> {
                 if (grade != null)
                   _LinhasVento(
                     grade: grade,
-                    hora: _hora.toDouble(),
+                    hora: _hora,
                     cores: escuro ? _coresEscuro : _coresClaro,
                   ),
                 CustomPaint(
@@ -129,8 +174,39 @@ class _MapaVentoState extends State<MapaVento> {
         const SizedBox(height: 12),
         if (grade != null && ventoCidade != null) ...[
           Text(
-            _frase(c.nome, ventoCidade, grade.horas[_hora]),
+            _frase(c.nome, ventoCidade, grade.horas[horaInteira], horaInteira),
             style: tema.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          if (grade.horas.length > 1)
+            Row(
+              children: [
+                IconButton.filledTonal(
+                  tooltip: tocando ? 'Pausar' : 'Animar as próximas horas',
+                  icon: Icon(tocando ? Icons.pause : Icons.play_arrow),
+                  onPressed: () => tocando ? setState(_parar) : _tocar(),
+                ),
+                Expanded(
+                  child: Slider(
+                    value: _hora.clamp(0, grade.horas.length - 1).toDouble(),
+                    max: (grade.horas.length - 1).toDouble(),
+                    divisions: grade.horas.length - 1,
+                    label: horaInteira == 0
+                        ? 'agora'
+                        : hora(grade.horas[horaInteira]),
+                    onChanged: (v) => setState(() {
+                      _parar();
+                      _hora = v.roundToDouble();
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          Text(
+            'De agora até ${grade.horas.last.day != DateTime.now().day ? 'amanhã ' : ''}'
+            '${hora(grade.horas.last)}. Toque em Animar (botão redondo) '
+            'para ver o vento e a chuva mudando.',
+            style: tema.textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
@@ -159,13 +235,20 @@ class _MapaVentoState extends State<MapaVento> {
     );
   }
 
-  String _frase(String cidade, (double, double) vento, DateTime quando) {
+  String _frase(
+    String cidade,
+    (double, double) vento,
+    DateTime quando,
+    int indice,
+  ) {
     final (u, v) = vento;
     final kmh = math.sqrt(u * u + v * v);
     // A primeira hora da previsão é a hora atual.
-    final momento = DateTime.now().difference(quando).inMinutes < 60
+    final agora = DateTime.now();
+    final amanha = quando.day != agora.day;
+    final momento = indice == 0 && agora.difference(quando).inMinutes < 60
         ? 'agora'
-        : 'às ${hora(quando)}';
+        : '${amanha ? 'amanhã ' : ''}às ${hora(quando)}';
     if (kmh < 2) return 'Vento em $cidade $momento: calmo';
     // De onde vem: o contrário do sentido em que sopra.
     final de = (math.atan2(-u, -v) * 180 / math.pi + 360) % 360;
@@ -195,6 +278,7 @@ class _LinhasVentoState extends State<_LinhasVento>
   late final Ticker _ticker;
   final _particulas = _Particulas();
   Duration _anterior = Duration.zero;
+  _PintorLinhas? _pintor;
 
   @override
   void initState() {
@@ -224,7 +308,9 @@ class _LinhasVentoState extends State<_LinhasVento>
         return RepaintBoundary(
           child: CustomPaint(
             size: Size.infinite,
-            painter: _PintorLinhas(_particulas, widget.cores),
+            painter: _pintor = (_pintor?.cores == widget.cores
+                ? _pintor!
+                : _PintorLinhas(_particulas, widget.cores)),
           ),
         );
       },
@@ -422,13 +508,15 @@ class _PintorFundo extends CustomPainter {
   _PintorFundo(this.grade, this.hora);
 
   final GradeVento grade;
-  final int hora;
+  final double hora;
 
   @override
   void paint(Canvas canvas, Size s) {
     final g = grade;
     final nc = g.colunas, nl = g.linhas;
-    final h = hora.clamp(0, g.horas.length - 1);
+    final h0 = hora.floor().clamp(0, g.horas.length - 1);
+    final h1 = math.min(h0 + 1, g.horas.length - 1);
+    final f = (hora - h0).clamp(0.0, 1.0);
     final pos = Float32List(nc * nl * 2);
     final cores = Int32List(nc * nl);
     final a = g.area;
@@ -439,7 +527,9 @@ class _PintorFundo extends CustomPainter {
         final i = l * nc + c;
         pos[i * 2] = c / (nc - 1) * s.width;
         pos[i * 2 + 1] = y * s.height;
-        cores[i] = corChuvaNuvem(g.chuva[h][i], g.nuvens[h][i]).toARGB32();
+        final mm = g.chuva[h0][i] + (g.chuva[h1][i] - g.chuva[h0][i]) * f;
+        final nv = g.nuvens[h0][i] + (g.nuvens[h1][i] - g.nuvens[h0][i]) * f;
+        cores[i] = corChuvaNuvem(mm, nv).toARGB32();
       }
     }
     final indices = Uint16List((nc - 1) * (nl - 1) * 6);
