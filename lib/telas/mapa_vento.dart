@@ -34,6 +34,9 @@ class _MapaVentoState extends State<MapaVento> {
   GradeVento? _grade;
   bool _carregando = true;
 
+  /// Vento medido agora nas estações oficiais da área (INMET e aeroportos).
+  List<VentoMedido> _medidos = [];
+
   /// Hora mostrada: 0 = agora; fracionária durante a animação (1,5 = entre a 2ª e a 3ª).
   double _hora = 0;
   Timer? _animacao;
@@ -93,6 +96,10 @@ class _MapaVentoState extends State<MapaVento> {
       _grade = g;
       _carregando = false;
     });
+    final area = g?.area ?? areaAoRedor(c.latitude!, c.longitude!);
+    final medidos = await FonteVentoMedido()
+        .buscar(area, c.latitude!, c.longitude!, brasil: !c.noCanada);
+    if (mounted) setState(() => _medidos = medidos);
   }
 
   @override
@@ -156,6 +163,16 @@ class _MapaVentoState extends State<MapaVento> {
                     hora: _hora,
                     cores: escuro ? _coresEscuro : _coresClaro,
                   ),
+                // As medições são de agora: só aparecem na primeira hora da linha do tempo.
+                if (_medidos.isNotEmpty && _hora < 0.5)
+                  CustomPaint(
+                    painter: _PintorMedidos(
+                      area,
+                      _medidos,
+                      cor: tema.colorScheme.onSurface,
+                      contorno: tema.colorScheme.surface,
+                    ),
+                  ),
                 CustomPaint(
                   painter: PintorMarcadores(
                     area,
@@ -173,6 +190,16 @@ class _MapaVentoState extends State<MapaVento> {
         ),
         const _LegendaChuva(),
         _LegendaVento(cores: escuro ? _coresEscuro : _coresClaro),
+        if (_medidos.isNotEmpty && _hora < 0.5)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Setas com número: vento medido agora (km/h) em ${_medidos.length} '
+              'estações oficiais (INMET e aeroportos). As linhas são a estimativa do modelo.',
+              style: tema.textTheme.labelSmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
         const SizedBox(height: 12),
         if (grade != null && ventoCidade != null) ...[
           Text(
@@ -665,4 +692,71 @@ class _LegendaVento extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Setas do vento medido nas estações: apontam para onde o vento vai, com a velocidade.
+class _PintorMedidos extends CustomPainter {
+  _PintorMedidos(this.area, this.medidos, {required this.cor, required this.contorno});
+
+  final AreaRadar area;
+  final List<VentoMedido> medidos;
+  final Color cor;
+  final Color contorno;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final fundo = Paint()
+      ..color = contorno
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final traco = Paint()
+      ..color = cor
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    for (final m in medidos) {
+      if (!area.contem(m.latitude, m.longitude)) continue;
+      final (x, y) = area.posicao(m.latitude, m.longitude);
+      final p = Offset(x * s.width, y * s.height);
+      final kmh = m.kmh ?? 0;
+      if (kmh < 2 || m.direcao == null) {
+        // Calmo ou direção variável: só um círculo.
+        canvas.drawCircle(p, 5, fundo);
+        canvas.drawCircle(p, 5, traco);
+      } else {
+        // Para onde vai = de onde vem + 180°.
+        final para = (m.direcao! + 180) * math.pi / 180;
+        final comp = 14 + math.min(kmh, 60) * 0.6;
+        final d = Offset(math.sin(para), -math.cos(para));
+        final ponta = p + d * (comp / 2);
+        final cauda = p - d * (comp / 2);
+        final lado = Offset(-d.dy, d.dx);
+        final seta = Path()
+          ..moveTo(cauda.dx, cauda.dy)
+          ..lineTo(ponta.dx, ponta.dy)
+          ..moveTo(ponta.dx - d.dx * 7 + lado.dx * 5, ponta.dy - d.dy * 7 + lado.dy * 5)
+          ..lineTo(ponta.dx, ponta.dy)
+          ..lineTo(ponta.dx - d.dx * 7 - lado.dx * 5, ponta.dy - d.dy * 7 - lado.dy * 5);
+        canvas.drawPath(seta, fundo);
+        canvas.drawPath(seta, traco);
+      }
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${kmh.round()}',
+          style: TextStyle(
+            color: cor,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: contorno, blurRadius: 3)],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, p + const Offset(6, 4));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PintorMedidos old) => old.medidos != medidos || old.cor != cor;
 }

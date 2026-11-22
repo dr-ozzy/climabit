@@ -2,8 +2,14 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
+
+import 'cidade.dart';
+import 'fontes.dart';
 import 'http_cache.dart';
+import 'municipios.dart';
 import 'radar.dart';
+import 'repositorio.dart' show lerCodigosAeroportos;
 
 /// Mapa de vento: grade de pontos ao redor da cidade com vento, chuva e nuvens de hora em
 /// hora (Open-Meteo, estimativa de modelo, não medição).
@@ -231,6 +237,143 @@ class FonteVento {
       return null;
     } on FormatException {
       return null;
+    }
+  }
+}
+
+/// Vento medido agora numa estação oficial (INMET ou aeroporto), para desenhar no mapa.
+class VentoMedido {
+  const VentoMedido({
+    required this.nome,
+    required this.latitude,
+    required this.longitude,
+    required this.hora,
+    required this.aeroporto,
+    this.kmh,
+    this.direcao,
+  });
+
+  final String nome;
+  final double latitude;
+  final double longitude;
+  final DateTime hora;
+  final bool aeroporto;
+  final double? kmh;
+
+  /// Graus de onde o vento vem (nulo = variável).
+  final int? direcao;
+}
+
+/// Medições de vento das estações na área do mapa: todos os aeroportos com boletim METAR
+/// (DECEA/NOAA) e até 8 estações automáticas do INMET. O INMET não aceita consulta pelo
+/// código da estação; o app pergunta "estação mais próxima" do município mais perto de cada
+/// estação e só aceita a resposta se o código bater.
+class FonteVentoMedido {
+  FonteVentoMedido({HttpCache? http}) : _http = http ?? HttpCache();
+
+  final HttpCache _http;
+  static const validade = Duration(minutes: 30);
+  static final Map<String, (DateTime, List<VentoMedido>)> _memoria = {};
+  static List<(String, double, double)>? _estacoesInmet;
+
+  static Future<List<(String, double, double)>> _listaInmet() async {
+    if (_estacoesInmet != null) return _estacoesInmet!;
+    final j = jsonDecode(await rootBundle.loadString('assets/estacoes_inmet.json'))
+        as Map<String, dynamic>;
+    return _estacoesInmet = [
+      for (final e in (j['estacoes'] as List).cast<List>())
+        (e[0] as String, (e[1] as num).toDouble(), (e[2] as num).toDouble()),
+    ];
+  }
+
+  Future<List<VentoMedido>> buscar(AreaRadar area, double lat, double lon,
+      {required bool brasil}) async {
+    final chave = '${area.oeste.toStringAsFixed(2)},${area.norte.toStringAsFixed(2)}';
+    final m = _memoria[chave];
+    if (m != null && DateTime.now().difference(m.$1) < validade) return m.$2;
+    final r = await Future.wait([
+      _aeroportos(area),
+      if (brasil) _inmet(area, lat, lon) else Future.value(<VentoMedido>[]),
+    ]);
+    final agora = DateTime.now();
+    final lista = [
+      for (final v in [...r[0], ...r[1]])
+        if (agora.difference(v.hora) <= const Duration(hours: 2) && v.kmh != null) v,
+    ];
+    _memoria[chave] = (agora, lista);
+    return lista;
+  }
+
+  Future<List<VentoMedido>> _aeroportos(AreaRadar a) async {
+    try {
+      String f(double v) => v.toStringAsFixed(2);
+      final bbox = '${f(a.sul)},${f(a.oeste)},${f(a.norte)},${f(a.leste)}';
+      final est = await _http.obter(
+          Uri.parse('https://aviationweather.gov/api/data/stationinfo?bbox=$bbox&format=json'));
+      final codigos = lerCodigosAeroportos(est.corpo);
+      if (codigos.isEmpty) return [];
+      final r = await _http.obter(Uri.parse(
+          'https://aviationweather.gov/api/data/metar?ids=${codigos.join(',')}&format=json'));
+      return [
+        for (final v in lerVentoAeroportos(r.corpo))
+          VentoMedido(
+            nome: v.codigo,
+            latitude: v.latitude,
+            longitude: v.longitude,
+            hora: v.hora,
+            aeroporto: true,
+            kmh: v.ventoKmh,
+            direcao: v.variavel ? null : v.direcao,
+          ),
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<VentoMedido>> _inmet(AreaRadar a, double lat, double lon) async {
+    try {
+      final estacoes = [
+        for (final e in await _listaInmet())
+          if (a.contem(e.$2, e.$3)) e,
+      ]..sort((x, y) => distanciaEntre(lat, lon, x.$2, x.$3)
+          .compareTo(distanciaEntre(lat, lon, y.$2, y.$3)));
+      final municipios = (await Municipios.carregar()).todos.where((c) => c.geocode > 0).toList();
+      Future<VentoMedido?> uma((String, double, double) e) async {
+        // Município cuja sede fica mais perto da estação.
+        Cidade? perto;
+        var menor = double.infinity;
+        for (final c in municipios) {
+          final d = distanciaEntre(e.$2, e.$3, c.latitude!, c.longitude!);
+          if (d < menor) {
+            menor = d;
+            perto = c;
+          }
+        }
+        if (perto == null) return null;
+        try {
+          final r = await _http.obter(
+              Uri.parse('https://apiprevmet3.inmet.gov.br/estacao/proxima/${perto.geocode}'));
+          final med = lerEstacaoInmet(r.corpo);
+          if (med == null || med.codigo != e.$1) return null;
+          return VentoMedido(
+            nome: med.estacao,
+            latitude: e.$2,
+            longitude: e.$3,
+            hora: med.hora,
+            aeroporto: false,
+            kmh: med.ventoKmh,
+            direcao: med.ventoDirecao,
+          );
+        } catch (_) {
+          return null;
+        }
+      }
+
+      final r = await Future.wait([for (final e in estacoes.take(8)) uma(e)]);
+      return r.whereType<VentoMedido>().toList();
+    } catch (_) {
+      return [];
     }
   }
 }
