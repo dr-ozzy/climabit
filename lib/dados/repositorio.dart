@@ -76,6 +76,9 @@ class Repositorio extends ChangeNotifier {
 
   Medicao? medicao;
   List<DiaPrevisao> previsao = [];
+
+  /// Dias depois da previsão oficial, até 16 dias à frente (Open-Meteo, estimativa).
+  List<DiaPrevisao> previsaoExtra = [];
   List<Pluviometro> pluviometros = [];
   List<Alerta> alertas = [];
   List<PrevisaoOnda> ondas = [];
@@ -389,14 +392,12 @@ class Repositorio extends ChangeNotifier {
     estimativaAtual = null;
     ventoEstimado = null;
     previsaoEstimada = false;
+    previsaoExtra = [];
     final agora = DateTime.now();
     final semAtual = !medicaoOficialValida(medicao, agora);
     final semVento = ventoAeroporto == null && medicao?.ventoKmh == null;
     final semPrevisao = previsao.isEmpty;
-    if (!(semAtual || semVento || semPrevisao)) {
-      fontes.remove('Open-Meteo (estimativa)');
-      return;
-    }
+    // Sempre consulta: além de completar o que falta, traz os dias 8 a 16 (estimativa).
     if (c.latitude == null || c.longitude == null) return;
     final r = await _consultar('Open-Meteo (estimativa)', _enderecoOpenMeteo(c.latitude!, c.longitude!));
     final om = _ler('Open-Meteo (estimativa)', r, lerOpenMeteo);
@@ -410,6 +411,13 @@ class Repositorio extends ChangeNotifier {
       final hoje = DateTime(agora.year, agora.month, agora.day);
       previsao = om.dias.where((d) => !d.dia.isBefore(hoje)).take(7).toList();
       previsaoEstimada = true;
+    }
+    if (previsao.isNotEmpty) {
+      final ultimo = previsao.last.dia;
+      previsaoExtra = om.dias
+          .where((d) => DateTime(d.dia.year, d.dia.month, d.dia.day)
+              .isAfter(DateTime(ultimo.year, ultimo.month, ultimo.day)))
+          .toList();
     }
   }
 
@@ -598,7 +606,7 @@ Uri _enderecoOpenMeteo(double lat, double lon) => Uri.https('api.open-meteo.com'
       'daily': 'weather_code,temperature_2m_max,temperature_2m_min,'
           'precipitation_probability_max,uv_index_max',
       'timezone': 'America/Sao_Paulo',
-      'forecast_days': '7',
+      'forecast_days': '16',
       'wind_speed_unit': 'kmh',
     });
 

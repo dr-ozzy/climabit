@@ -47,6 +47,13 @@ class TelaPrevisao extends StatelessWidget {
       // Visão da semana de relance: uma linha por dia com a barra da mínima à máxima.
       _CartaoSemana(dias: dias),
       Colunas(children: [for (final d in dias) _CartaoDia(dia: d, ondaMax: _ondaMaxima(repo.ondas, d.dia))]),
+      if (repo.previsaoExtra.length >= 2)
+        _CartaoSemana(
+          dias: repo.previsaoExtra,
+          titulo: 'Mais ${repo.previsaoExtra.length} dias (estimativa)',
+          nota: 'Estimativa do modelo Open-Meteo, não é previsão oficial. Quanto mais longe, '
+              'menos confiável.',
+        ),
       RodapeFontes(repo: repo),
     ]);
   }
@@ -124,9 +131,13 @@ final _diaCurto = DateFormat('EEE, d', 'pt_BR');
 /// Semana de relance: dia, ícone, chance de chuva e a barra da mínima à máxima. A barra
 /// fica na posição certa dentro da faixa da semana (ideia de outros apps de clima).
 class _CartaoSemana extends StatelessWidget {
-  const _CartaoSemana({required this.dias});
+  const _CartaoSemana({required this.dias, this.titulo = 'A semana', this.nota});
 
   final List<DiaPrevisao> dias;
+  final String titulo;
+
+  /// Texto pequeno no fim do cartão (ex.: aviso de estimativa).
+  final String? nota;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +148,7 @@ class _CartaoSemana extends StatelessWidget {
     final maior = comFaixa.map((d) => d.maxima!).reduce((a, b) => a > b ? a : b);
     final agora = DateTime.now();
     return Cartao(
-      titulo: 'A semana',
+      titulo: titulo,
       icone: Icons.calendar_view_week,
       children: [
         for (final d in comFaixa)
@@ -180,6 +191,10 @@ class _CartaoSemana extends StatelessWidget {
               ),
             ]),
           ),
+        if (nota != null) ...[
+          const SizedBox(height: 6),
+          Text(nota!, style: tema.textTheme.bodySmall),
+        ],
       ],
     );
   }
