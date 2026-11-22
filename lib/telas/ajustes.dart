@@ -52,6 +52,8 @@ class _TelaAjustesState extends State<TelaAjustes> {
 
   Future<void> _ligarChuva(bool ligar) => _ligar(ligar, _p.definirAvisoChuva);
 
+  Future<void> _ligarResumoNoite(bool ligar) => _ligar(ligar, _p.definirResumoNoite);
+
   Future<void> _exemplo() async {
     final ok = await Notificacoes.pedirPermissao();
     if (!ok) {
@@ -203,6 +205,13 @@ class _TelaAjustesState extends State<TelaAjustes> {
                     'Estimativa por modelo (Open-Meteo): o horário pode variar.'),
                 value: _p.avisoChuva,
                 onChanged: _ligarChuva,
+              ),
+              SwitchListTile(
+                title: const Text('Resumo de amanhã, à noite'),
+                subtitle: const Text('Uma notificação entre 19h e 23h com a previsão do dia '
+                    'seguinte (INMET; no Canadá, ECCC).'),
+                value: _p.resumoNoite,
+                onChanged: _ligarResumoNoite,
               ),
               ListTile(
                 enabled: ligado,

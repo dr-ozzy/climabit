@@ -17,6 +17,7 @@ import 'widget_tela.dart';
 const _tarefa = 'verificar_alertas';
 const _vistos = 'alertas_vistos';
 const _chuvaAvisada = 'chuva_avisada';
+const _resumoEnviado = 'resumo_noite_enviado';
 
 final _plugin = FlutterLocalNotificationsPlugin();
 
@@ -38,6 +39,11 @@ void despachante() {
         }
         try {
           await verificarChuva();
+        } catch (_) {
+          ok = false;
+        }
+        try {
+          await verificarResumoNoite();
         } catch (_) {
           ok = false;
         }
@@ -163,6 +169,67 @@ Future<void> verificarAlertas() async {
   }.toList());
 }
 
+
+// ---------------------------------------------------------------------------
+// Resumo do dia seguinte, à noite
+// ---------------------------------------------------------------------------
+
+/// Texto curto da previsão de um dia: "Chuva à tarde · máx. 31° mín. 22° · chuva 70 %".
+String textoResumoDia(DiaPrevisao d) => [
+      if (d.resumo.isNotEmpty) d.resumo,
+      if (d.maxima != null || d.minima != null)
+        [
+          if (d.maxima != null) 'máx. ${d.maxima}°',
+          if (d.minima != null) 'mín. ${d.minima}°',
+        ].join(' '),
+      if (d.probabilidadeChuva != null) 'chuva ${d.probabilidadeChuva} %',
+    ].join(' · ');
+
+/// Entre 19h e 23h, uma vez por dia, notifica a previsão de amanhã da cidade dos avisos.
+Future<void> verificarResumoNoite() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await Preferencias.carregar();
+  if (!prefs.resumoNoite) return;
+  final agora = DateTime.now();
+  if (agora.hour < 19 || agora.hour >= 23) return;
+  if (emSilencio(prefs.silencio, agora)) return;
+  final hoje = '${agora.year}-${agora.month}-${agora.day}';
+  final sp = await SharedPreferences.getInstance();
+  if (sp.getString(_resumoEnviado) == hoje) return;
+  final cidade = prefs.cidadeDosAvisos;
+  final r = await http.get(
+    cidade.noCanada
+        ? enderecoCanada(cidade.idEccc!)
+        : Uri.parse('https://apiprevmet3.inmet.gov.br/previsao/${cidade.geocode}'),
+    headers: {'User-Agent': 'ClimaBit/1.27 (Android)'},
+  ).timeout(const Duration(seconds: 30));
+  if (r.statusCode != 200) throw Exception('fonte ${r.statusCode}');
+  final corpo = utf8.decode(r.bodyBytes, allowMalformed: true);
+  final dias = cidade.noCanada ? lerCanada(corpo).dias : lerPrevisaoInmet(corpo, cidade.geocode);
+  final amanha = DateTime(agora.year, agora.month, agora.day + 1);
+  final d = dias.where((x) =>
+      x.dia.year == amanha.year && x.dia.month == amanha.month && x.dia.day == amanha.day);
+  if (d.isEmpty) return;
+  final texto = textoResumoDia(d.first);
+  await _iniciarPlugin();
+  await _plugin.show(
+    id: 7300,
+    title: 'Amanhã em ${cidade.nome}',
+    body: texto,
+    notificationDetails: NotificationDetails(
+      android: AndroidNotificationDetails(
+        'resumo_noite',
+        'Resumo do dia seguinte',
+        channelDescription: 'Previsão de amanhã, à noite (opcional)',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        icon: 'ic_notif_chuva',
+        styleInformation: BigTextStyleInformation(texto),
+      ),
+    ),
+  );
+  await sp.setString(_resumoEnviado, hoje);
+}
 
 // ---------------------------------------------------------------------------
 // Chuva chegando (estimativa de 15 em 15 minutos do Open-Meteo)

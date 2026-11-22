@@ -23,6 +23,7 @@ class Preferencias {
   static const _silencioIni = 'silencio_inicio';
   static const _silencioFim = 'silencio_fim';
   static const _chuvaModerada = 'chuva_so_moderada';
+  static const _resumoNoite = 'resumo_noite';
 
   List<Cidade> get cidadesSalvas {
     final s = _p.getString(_salvas);
@@ -52,7 +53,11 @@ class Preferencias {
   Future<void> definirAvisoChuva(bool v) => _p.setBool(_avisoChuva, v);
 
   /// Alguma conferência em segundo plano ligada (alertas ou chuva).
-  bool get algumAviso => avisosLigados || avisoChuva;
+  bool get algumAviso => avisosLigados || avisoChuva || resumoNoite;
+
+  /// Notificação à noite com a previsão do dia seguinte (desligada por padrão).
+  bool get resumoNoite => _p.getBool(_resumoNoite) ?? false;
+  Future<void> definirResumoNoite(bool v) => _p.setBool(_resumoNoite, v);
 
   Cidade get cidadeDosAvisos {
     final s = _p.getString(_cidadeAvisos);

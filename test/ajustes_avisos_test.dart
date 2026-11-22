@@ -50,4 +50,10 @@ void main() {
     final ja = [Faixa15(inicio: agora, milimetros: 0.4, codigo: 95)];
     expect(textoChuvaPerto(ja, agora), 'Trovoada agora');
   });
+
+  test('texto do resumo de amanhã', () {
+    final d = DiaPrevisao(dia: DateTime(2026, 11, 23), fonte: 'INMET', resumo: 'Chuva à tarde',
+        maxima: 31, minima: 22, probabilidadeChuva: 70);
+    expect(textoResumoDia(d), 'Chuva à tarde · máx. 31° mín. 22° · chuva 70 %');
+  });
 }
