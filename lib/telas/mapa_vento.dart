@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/scheduler.dart';
+import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
 import '../dados/cidade.dart';
@@ -36,6 +37,52 @@ class _MapaVentoState extends State<MapaVento> {
 
   /// Vento medido agora nas estações oficiais da área (INMET e aeroportos).
   List<VentoMedido> _medidos = [];
+
+  /// Canadá: camada oficial do ECCC (velocidade do vento do modelo HRDPS, 2,5 km).
+  bool _eccc = false;
+  final Map<DateTime, Uint8List?> _imagensEccc = {};
+  Uint8List? _legendaEccc;
+
+  static const _wmsEccc = 'https://geo.weather.gc.ca/geomet';
+  static const _camadaEccc = 'HRDPS.CONTINENTAL_WSPD';
+
+  /// Imagem da camada oficial para a hora [t] (UTC, hora cheia), na área do mapa.
+  Future<void> _buscarEccc(AreaRadar a, DateTime t) async {
+    final utc = DateTime.utc(t.toUtc().year, t.toUtc().month, t.toUtc().day, t.toUtc().hour);
+    if (_imagensEccc.containsKey(utc)) return;
+    _imagensEccc[utc] = null;
+    const r = 6378137.0;
+    double x(double lon) => lon * math.pi / 180 * r;
+    double y(double lat) => math.log(math.tan(math.pi / 4 + lat * math.pi / 360)) * r;
+    final bbox = '${x(a.oeste)},${y(a.sul)},${x(a.leste)},${y(a.norte)}';
+    final tempo = utc.toIso8601String().replaceAll('.000', '');
+    try {
+      final resp = await http
+          .get(Uri.parse('$_wmsEccc?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap'
+              '&LAYERS=$_camadaEccc&STYLES=&CRS=EPSG:3857&BBOX=$bbox&WIDTH=512&HEIGHT=512'
+              '&FORMAT=image/png&TRANSPARENT=TRUE&TIME=$tempo'))
+          .timeout(const Duration(seconds: 25));
+      final ok = resp.statusCode == 200 &&
+          (resp.headers['content-type'] ?? '').contains('image');
+      if (mounted) setState(() => _imagensEccc[utc] = ok ? resp.bodyBytes : null);
+    } catch (_) {
+      _imagensEccc.remove(utc);
+    }
+    if (_legendaEccc == null) {
+      try {
+        final l = await http
+            .get(Uri.parse('$_wmsEccc?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic'
+                '&LAYER=$_camadaEccc&FORMAT=image/png&SLD_VERSION=1.1.0&LANG=fr'))
+            .timeout(const Duration(seconds: 25));
+        if (l.statusCode == 200 && mounted) setState(() => _legendaEccc = l.bodyBytes);
+      } catch (_) {}
+    }
+  }
+
+  Uint8List? _imagemEcccDaHora(DateTime t) {
+    final u = t.toUtc();
+    return _imagensEccc[DateTime.utc(u.year, u.month, u.day, u.hour)];
+  }
 
   /// Hora mostrada: 0 = agora; fracionária durante a animação (1,5 = entre a 2ª e a 3ª).
   double _hora = 0;
@@ -127,6 +174,9 @@ class _MapaVentoState extends State<MapaVento> {
         ? 0
         : _hora.round().clamp(0, grade.horas.length - 1);
     final tocando = _animacao != null;
+    final horaMapa = grade == null ? null : grade.horas[horaInteira];
+    final imagemEccc = _eccc && horaMapa != null ? _imagemEcccDaHora(horaMapa) : null;
+    if (_eccc && horaMapa != null) _buscarEccc(area, horaMapa);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,15 +203,21 @@ class _MapaVentoState extends State<MapaVento> {
                   )
                 else
                   ColoredBox(color: terra),
-                if (grade != null)
+                if (grade != null && !_eccc)
                   CustomPaint(
                     painter: _PintorFundo(grade, _hora, escuro: escuro),
+                  ),
+                if (imagemEccc != null)
+                  Opacity(
+                    opacity: 0.75,
+                    child: Image.memory(imagemEccc, fit: BoxFit.fill, gaplessPlayback: true),
                   ),
                 if (grade != null)
                   _LinhasVento(
                     grade: grade,
                     hora: _hora,
-                    cores: escuro ? _coresEscuro : _coresClaro,
+                    // Sobre a camada oficial (escura), linhas claras.
+                    cores: escuro || _eccc ? _coresEscuro : _coresClaro,
                   ),
                 // As medições são de agora: só aparecem na primeira hora da linha do tempo.
                 if (_medidos.isNotEmpty && _hora < 0.5)
@@ -188,14 +244,39 @@ class _MapaVentoState extends State<MapaVento> {
             ),
           ),
         ),
-        const _LegendaChuva(),
+        if (c.noCanada)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Camada oficial do Canadá'),
+            subtitle: const Text('Velocidade do vento do modelo oficial do ECCC (2,5 km), '
+                'no lugar do fundo de chuva e nuvens.'),
+            value: _eccc,
+            onChanged: (v) => setState(() => _eccc = v),
+          ),
+        if (_eccc && _legendaEccc != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(children: [
+              Text('Vento (m/s, ECCC): ', style: tema.textTheme.labelSmall),
+              Expanded(
+                child: SizedBox(
+                  height: 120,
+                  child: Image.memory(_legendaEccc!, fit: BoxFit.contain, alignment: Alignment.centerLeft),
+                ),
+              ),
+            ]),
+          )
+        else
+          const _LegendaChuva(),
         _LegendaVento(cores: escuro ? _coresEscuro : _coresClaro),
         if (_medidos.isNotEmpty && _hora < 0.5)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               'Setas com número: vento medido agora (km/h) em ${_medidos.length} '
-              'estações oficiais (INMET e aeroportos). As linhas são a estimativa do modelo.',
+              'estações oficiais (${c.noCanada ? 'aeroportos' : 'INMET e aeroportos'}). '
+              'As linhas são a estimativa do modelo.',
               style: tema.textTheme.labelSmall,
               textAlign: TextAlign.center,
             ),
@@ -253,6 +334,7 @@ class _MapaVentoState extends State<MapaVento> {
         const SizedBox(height: 12),
         Text(
           'Fonte: Open-Meteo (CC BY 4.0), previsão de modelos meteorológicos.'
+          '${_eccc ? ' Camada oficial: Environment and Climate Change Canada (HRDPS).' : ''}'
           '${noMapa ? ' Mapa: IBGE.' : ''}'
           '${grade != null ? ' Obtido às ${hora(grade.obtidoEm)}.' : ''}',
           style: tema.textTheme.bodySmall?.copyWith(
