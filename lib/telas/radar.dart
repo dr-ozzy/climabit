@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import '../dados/radar.dart';
 import '../dados/repositorio.dart';
 import '../util/formatos.dart';
+import 'mapa_vento.dart';
 
 /// Imagens dos radares oficiais (Sumaré e Niterói) sobre o mapa do IBGE.
 /// Abre no radar com a imagem mais recente entre os que cobrem a cidade.
@@ -44,6 +45,9 @@ class _TelaRadarState extends State<TelaRadar> {
   }
 
   Uint8List? _fundo;
+
+  /// Mostrando o mapa de vento no lugar de um radar.
+  bool _vento = false;
   int _escolhido = 0;
   bool _escolhaDoUsuario = false;
   ContornosMapa? _mapa;
@@ -198,175 +202,203 @@ class _TelaRadarState extends State<TelaRadar> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (_radares.length > 1)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SegmentedButton<int>(
-                        segments: [
-                          for (var i = 0; i < _radares.length; i++)
-                            ButtonSegment(
-                              value: i,
-                              label: Text('Radar ${_radares[i].fonte.nome}'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SegmentedButton<int>(
+                      showSelectedIcon: false,
+                      segments: [
+                        for (var i = 0; i < _radares.length; i++)
+                          ButtonSegment(
+                            value: i,
+                            icon: const Icon(Icons.radar),
+                            label: Text(
+                              _radares.length > 1
+                                  ? _radares[i].fonte.nome
+                                  : 'Radar',
                             ),
-                        ],
-                        selected: {_escolhido},
-                        onSelectionChanged: (s) => _escolher(s.first),
-                      ),
-                    ),
-                  if (!dentro && cidade.latitude != null)
-                    Card(
-                      color: tema.colorScheme.secondaryContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          '${cidade.nome} fica fora da área do radar ${fonte.nome}.',
-                        ),
-                      ),
-                    ),
-                  if (r.situacao != null && !r.situacao!.normal)
-                    Card(
-                      color: tema.colorScheme.errorContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          'Aviso do ${fonte.orgao}: ${r.situacao!.texto}',
-                        ),
-                      ),
-                    ),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: AspectRatio(
-                      aspectRatio: proporcao,
-                      child: _mapa == null
-                          ? const Center(child: CircularProgressIndicator())
-                          : InteractiveViewer(
-                              maxScale: 6,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  if (_fundo != null)
-                                    Image.memory(_fundo!, fit: BoxFit.fill)
-                                  else
-                                    CustomPaint(
-                                      painter: _PintorMapa(
-                                        _mapa!,
-                                        fonte.area,
-                                        terra: tema
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        mar:
-                                            tema.colorScheme.brightness ==
-                                                Brightness.dark
-                                            ? const Color(0xFF0D2236)
-                                            : const Color(0xFFD6E9F8),
-                                        linha: tema.colorScheme.outlineVariant,
-                                        linhaEstado: tema.colorScheme.outline,
-                                      ),
-                                    ),
-                                  if (quadro != null)
-                                    Image.memory(
-                                      quadro.bytes,
-                                      fit: BoxFit.fill,
-                                      gaplessPlayback: true,
-                                    ),
-                                  CustomPaint(
-                                    painter: _PintorMarcadores(
-                                      fonte.area,
-                                      [
-                                        if (dentro && cidade.latitude != null)
-                                          (
-                                            cidade.latitude!,
-                                            cidade.longitude!,
-                                            cidade.nome,
-                                            true,
-                                          ),
-                                        for (final (lat, lon, nome)
-                                            in fonte.referencias)
-                                          if (nome != cidade.nome)
-                                            (lat, lon, nome, false),
-                                      ],
-                                      cor: tema.colorScheme.onSurface,
-                                      contorno: tema.colorScheme.surface,
-                                      destaque: tema.colorScheme.primary,
-                                    ),
-                                  ),
-                                  if (_carregando && quadros.isEmpty)
-                                    const Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ),
-                  if (!fonte.legendaNaImagem && fonte.legenda.isNotEmpty)
-                    _Legenda(
-                      cores: fonte.legenda,
-                      unidade: fonte.unidadeLegenda,
-                    ),
-                  const SizedBox(height: 12),
-                  if (quadro != null) ...[
-                    Text(
-                      '${fonte.rotuloHora} ${quando(quadro.hora)}${maisRecente ? ' (mais recente)' : ''}',
-                      style: tema.textTheme.titleMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    if (antigo && maisRecente)
-                      Text(
-                        'O radar não publica imagem nova há mais de 30 minutos.',
-                        style: TextStyle(color: tema.colorScheme.error),
-                        textAlign: TextAlign.center,
-                      ),
-                    Row(
-                      children: [
-                        IconButton.filledTonal(
-                          tooltip: tocando ? 'Pausar' : 'Animar',
-                          icon: Icon(tocando ? Icons.pause : Icons.play_arrow),
-                          onPressed: () =>
-                              tocando ? setState(_parar) : _tocar(),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: math
-                                .min(_atual, quadros.length - 1)
-                                .toDouble(),
-                            max: (quadros.length - 1).toDouble().clamp(0, 100),
-                            divisions: quadros.length > 1
-                                ? quadros.length - 1
-                                : null,
-                            label: hora(quadro.hora),
-                            onChanged: quadros.length < 2
-                                ? null
-                                : (v) => setState(() {
-                                    _parar();
-                                    _atual = v.round();
-                                  }),
                           ),
+                        const ButtonSegment(
+                          value: -1,
+                          icon: Icon(Icons.air),
+                          label: Text('Vento'),
                         ),
                       ],
+                      selected: {_vento ? -1 : _escolhido},
+                      onSelectionChanged: (s) {
+                        if (s.first == -1) {
+                          _parar();
+                          setState(() => _vento = true);
+                        } else {
+                          setState(() => _vento = false);
+                          _escolher(s.first);
+                        }
+                      },
                     ),
-                    Text(
-                      '${quadros.length} imagens, de ${hora(quadros.first.hora)} a '
-                      '${hora(quadros.last.hora)} (uma a cada ${fonte.intervaloMin} minutos). '
-                      'Use dois dedos para aproximar o mapa.',
-                      style: tema.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ] else if (!_carregando)
-                    Text(
-                      'O radar ${fonte.nome} não respondeu. Puxe a tela para baixo para tentar de novo.',
-                      textAlign: TextAlign.center,
-                    ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Fonte: ${fonte.orgao}, radar meteorológico ${fonte.nome}. '
-                    'Mapa: ${fonte.creditoMapa}.'
-                    '${_obtidoEm != null ? ' Obtido às ${hora(_obtidoEm!)}.' : ''}',
-                    style: tema.textTheme.bodySmall?.copyWith(
-                      color: tema.colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
+                  if (_vento)
+                    MapaVento(cidade: cidade, mapa: _mapa)
+                  else ...[
+                    if (!dentro && cidade.latitude != null)
+                      Card(
+                        color: tema.colorScheme.secondaryContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            '${cidade.nome} fica fora da área do radar ${fonte.nome}.',
+                          ),
+                        ),
+                      ),
+                    if (r.situacao != null && !r.situacao!.normal)
+                      Card(
+                        color: tema.colorScheme.errorContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            'Aviso do ${fonte.orgao}: ${r.situacao!.texto}',
+                          ),
+                        ),
+                      ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: proporcao,
+                        child: _mapa == null
+                            ? const Center(child: CircularProgressIndicator())
+                            : InteractiveViewer(
+                                maxScale: 6,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (_fundo != null)
+                                      Image.memory(_fundo!, fit: BoxFit.fill)
+                                    else
+                                      CustomPaint(
+                                        painter: PintorMapa(
+                                          _mapa!,
+                                          fonte.area,
+                                          terra: tema
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          mar:
+                                              tema.colorScheme.brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF0D2236)
+                                              : const Color(0xFFD6E9F8),
+                                          linha:
+                                              tema.colorScheme.outlineVariant,
+                                          linhaEstado: tema.colorScheme.outline,
+                                        ),
+                                      ),
+                                    if (quadro != null)
+                                      Image.memory(
+                                        quadro.bytes,
+                                        fit: BoxFit.fill,
+                                        gaplessPlayback: true,
+                                      ),
+                                    CustomPaint(
+                                      painter: PintorMarcadores(
+                                        fonte.area,
+                                        [
+                                          if (dentro && cidade.latitude != null)
+                                            (
+                                              cidade.latitude!,
+                                              cidade.longitude!,
+                                              cidade.nome,
+                                              true,
+                                            ),
+                                          for (final (lat, lon, nome)
+                                              in fonte.referencias)
+                                            if (nome != cidade.nome)
+                                              (lat, lon, nome, false),
+                                        ],
+                                        cor: tema.colorScheme.onSurface,
+                                        contorno: tema.colorScheme.surface,
+                                        destaque: tema.colorScheme.primary,
+                                      ),
+                                    ),
+                                    if (_carregando && quadros.isEmpty)
+                                      const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (!fonte.legendaNaImagem && fonte.legenda.isNotEmpty)
+                      _Legenda(
+                        cores: fonte.legenda,
+                        unidade: fonte.unidadeLegenda,
+                      ),
+                    const SizedBox(height: 12),
+                    if (quadro != null) ...[
+                      Text(
+                        '${fonte.rotuloHora} ${quando(quadro.hora)}${maisRecente ? ' (mais recente)' : ''}',
+                        style: tema.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      if (antigo && maisRecente)
+                        Text(
+                          'O radar não publica imagem nova há mais de 30 minutos.',
+                          style: TextStyle(color: tema.colorScheme.error),
+                          textAlign: TextAlign.center,
+                        ),
+                      Row(
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: tocando ? 'Pausar' : 'Animar',
+                            icon: Icon(
+                              tocando ? Icons.pause : Icons.play_arrow,
+                            ),
+                            onPressed: () =>
+                                tocando ? setState(_parar) : _tocar(),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: math
+                                  .min(_atual, quadros.length - 1)
+                                  .toDouble(),
+                              max: (quadros.length - 1).toDouble().clamp(
+                                0,
+                                100,
+                              ),
+                              divisions: quadros.length > 1
+                                  ? quadros.length - 1
+                                  : null,
+                              label: hora(quadro.hora),
+                              onChanged: quadros.length < 2
+                                  ? null
+                                  : (v) => setState(() {
+                                      _parar();
+                                      _atual = v.round();
+                                    }),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${quadros.length} imagens, de ${hora(quadros.first.hora)} a '
+                        '${hora(quadros.last.hora)} (uma a cada ${fonte.intervaloMin} minutos). '
+                        'Use dois dedos para aproximar o mapa.',
+                        style: tema.textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else if (!_carregando)
+                      Text(
+                        'O radar ${fonte.nome} não respondeu. Puxe a tela para baixo para tentar de novo.',
+                        textAlign: TextAlign.center,
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Fonte: ${fonte.orgao}, radar meteorológico ${fonte.nome}. '
+                      'Mapa: ${fonte.creditoMapa}.'
+                      '${_obtidoEm != null ? ' Obtido às ${hora(_obtidoEm!)}.' : ''}',
+                      style: tema.textTheme.bodySmall?.copyWith(
+                        color: tema.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -425,8 +457,8 @@ Offset _ponto(AreaRadar area, double lat, double lon, Size s) {
   return Offset(x * s.width, y * s.height);
 }
 
-class _PintorMapa extends CustomPainter {
-  _PintorMapa(
+class PintorMapa extends CustomPainter {
+  PintorMapa(
     this.mapa,
     this.area, {
     required this.terra,
@@ -477,15 +509,15 @@ class _PintorMapa extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PintorMapa old) =>
+  bool shouldRepaint(PintorMapa old) =>
       old.mapa != mapa ||
       old.area != area ||
       old.terra != terra ||
       old.mar != mar;
 }
 
-class _PintorMarcadores extends CustomPainter {
-  _PintorMarcadores(
+class PintorMarcadores extends CustomPainter {
+  PintorMarcadores(
     this.area,
     this.pontos, {
     required this.cor,
@@ -540,5 +572,5 @@ class _PintorMarcadores extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PintorMarcadores old) => true;
+  bool shouldRepaint(PintorMarcadores old) => true;
 }
