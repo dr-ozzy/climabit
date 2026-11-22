@@ -34,4 +34,17 @@ void main() {
         'Temperatura parecida com a de ontem a esta hora.');
     expect(comparacaoOntem(horas([0]), const [], agora), isNull);
   });
+
+  test('aviso de tempo marcante nos próximos dias', () {
+    DiaPrevisao d(int dia, String resumo, {int? max, int? min}) => DiaPrevisao(
+        dia: DateTime(2026, 11, dia), fonte: 'INMET', resumo: resumo, maxima: max, minima: min);
+    final agora = DateTime(2026, 11, 22, 10); // domingo
+    expect(avisoProximosDias([d(22, 'Tempestade'), d(23, 'Sol', max: 30)], agora), isNull);
+    expect(avisoProximosDias([d(23, 'Pancadas de chuva e trovoadas isoladas')], agora), isNull);
+    expect(avisoProximosDias([d(23, 'Sol'), d(26, 'Chuva forte')], agora),
+        'Quinta-feira: chuva forte prevista.');
+    expect(avisoProximosDias([d(23, 'Sol', max: 36)], agora), 'Amanhã: calor forte (máx. 36°).');
+    expect(avisoProximosDias([d(24, 'Sol', min: 8)], agora), 'Terça-feira: frio (mín. 8°).');
+    expect(avisoProximosDias([d(24, 'Sun', min: 8)], agora, canada: true), isNull);
+  });
 }

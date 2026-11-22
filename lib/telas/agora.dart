@@ -88,6 +88,8 @@ class TelaAgora extends StatelessWidget {
           passadas: repo.horasPassadas,
           agora: agora,
           oficial: repo.horasOficiais,
+          dias: repo.previsao,
+          canada: repo.cidade.noCanada,
         ),
       if (repo.previsao.isNotEmpty) _CartaoChuva(repo: repo, agora: agora, hoje: hoje),
       if (repo.chuvaHoraria.isNotEmpty)

@@ -92,6 +92,41 @@ String? comparacaoOntem(List<HoraChuva> horas, List<HoraChuva> passadas, DateTim
 
 /// Cartão do topo da tela Agora: frase do dia, chance na próxima hora e comparação com
 /// ontem. Tudo vem da previsão por hora (estimativa de modelo no Brasil).
+const _diasSemana = [
+  'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado',
+  'Domingo'
+];
+
+/// Aviso de tempo marcante nos próximos 6 dias (a partir de amanhã), ao estilo
+/// "Quinta-feira: chuva forte prevista." Nulo quando nenhum dia se destaca.
+/// "Trovoadas isoladas" sozinhas não contam (o INMET escreve isso quase todo dia no verão).
+String? avisoProximosDias(List<DiaPrevisao> dias, DateTime agora, {bool canada = false}) {
+  final hoje = DateTime(agora.year, agora.month, agora.day);
+  for (final d in dias) {
+    final dia = DateTime(d.dia.year, d.dia.month, d.dia.day);
+    final diff = dia.difference(hoje).inDays;
+    if (diff < 1 || diff > 6) continue;
+    final texto = d.resumo.toLowerCase();
+    final String? oQue;
+    if (texto.contains('tempestade') || texto.contains('temporal')) {
+      oQue = 'tempestade prevista';
+    } else if (texto.contains('chuva forte') || texto.contains('chuvas fortes') ||
+        texto.contains('heavy rain') || texto.contains('pluie forte')) {
+      oQue = 'chuva forte prevista';
+    } else if ((d.maxima ?? 0) >= 35) {
+      oQue = 'calor forte (máx. ${d.maxima}°)';
+    } else if (d.minima != null && d.minima! <= (canada ? -15 : 10)) {
+      oQue = 'frio (mín. ${d.minima}°)';
+    } else {
+      oQue = null;
+    }
+    if (oQue == null) continue;
+    final nome = diff == 1 ? 'Amanhã' : _diasSemana[dia.weekday - 1];
+    return '$nome: $oQue.';
+  }
+  return null;
+}
+
 class CartaoResumo extends StatelessWidget {
   const CartaoResumo({
     super.key,
@@ -101,7 +136,13 @@ class CartaoResumo extends StatelessWidget {
     required this.passadas,
     required this.agora,
     this.oficial = false,
+    this.dias = const [],
+    this.canada = false,
   });
+
+  /// Previsão por dia (para o aviso dos próximos dias).
+  final List<DiaPrevisao> dias;
+  final bool canada;
 
   final EstadoCeu? ceu;
   final bool noite;
@@ -117,6 +158,7 @@ class CartaoResumo extends StatelessWidget {
     final tema = Theme.of(context);
     final proxima = chanceProximaHora(horas, agora);
     final ontem = comparacaoOntem(horas, passadas, agora);
+    final marcante = avisoProximosDias(dias, agora, canada: canada);
     return Cartao(
       titulo: 'Resumo',
       icone: Icons.short_text,
@@ -136,6 +178,14 @@ class CartaoResumo extends StatelessWidget {
             Icon(Icons.history, size: 18, color: tema.colorScheme.primary),
             const SizedBox(width: 6),
             Expanded(child: Text(ontem)),
+          ]),
+        ],
+        if (marcante != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            Icon(Icons.event_note, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(marcante, style: const TextStyle(fontWeight: FontWeight.w600))),
           ]),
         ],
         const SizedBox(height: 6),
