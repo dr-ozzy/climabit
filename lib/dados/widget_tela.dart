@@ -8,6 +8,7 @@ import '../util/formatos.dart';
 import 'astro.dart';
 import 'fontes.dart';
 import 'mare.dart';
+import 'notificacoes.dart' show avisoDeChuva;
 import 'preferencias.dart';
 import 'repositorio.dart';
 
@@ -153,6 +154,10 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
       ? chances.reduce((a, b) => a > b ? a : b)
       : hoje?.probabilidadeChuva;
 
+  // Widget que muda sozinho: com chuva prevista nas próximas 2 horas (de 15 em 15 min), o
+  // texto da chuva diz quando ela começa; sem chuva perto, mostra a chance das próximas horas.
+  final chuvaPerto = textoChuvaPerto(repo.faixas15, agora);
+
   // Alerta: sirene acionada ou aviso grave = vermelho; aviso de potencial perigo = amarelo.
   final alertas = repo.alertas.where((a) => a.ativo(agora)).toList()
     ..sort((a, b) => gravidadeAlerta(b).compareTo(gravidadeAlerta(a)));
@@ -178,7 +183,7 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
     maxMin: hoje?.maxima != null && hoje?.minima != null
         ? '↑${hoje!.maxima}° ↓${hoje.minima}°'
         : '',
-    chuva: chance == null ? '' : 'Chuva $chance %',
+    chuva: chuvaPerto ?? (chance == null ? '' : 'Chuva $chance %'),
     cidade: repo.cidade.nome,
     hora: hora(agora),
     // Cenário do tipo de dia (campo, vulcão, cachoeiras, neve) ou morros comuns.
@@ -197,9 +202,10 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
     sensacao: sensacaoAgora == null ? '' : 'sensação ${sensacaoAgora.round()}°',
     alertaCurto: curto,
     detalhes: [
+      ?chuvaPerto,
       if (ventoKmh != null) 'Vento ${ventoKmh.round()} km/h',
       if (m.umidade != null) 'Umidade ${m.umidade!.round()} %',
-      if (chance != null) 'Chuva $chance %',
+      if (chance != null && chuvaPerto == null) 'Chuva $chance %',
     ].join(' · '),
     serie: [
       for (final h in repo.chuvaHoraria
@@ -222,6 +228,21 @@ DadosWidget? calcularDadosWidget(Repositorio repo, DateTime agora) {
         ),
     ],
   );
+}
+
+/// "Chovendo agora" ou "Chuva às 18:15" (garoa, neve, trovoada) quando a previsão de 15 em
+/// 15 minutos tem chuva nas próximas 2 horas; nulo se não houver.
+String? textoChuvaPerto(List<Faixa15> faixas, DateTime agora) {
+  final a = avisoDeChuva(faixas, agora);
+  if (a == null) return null;
+  final tipo = a.descricao.startsWith('garoa')
+      ? 'Garoa'
+      : a.descricao.startsWith('neve')
+          ? 'Neve'
+          : a.descricao.contains('trovoada')
+              ? 'Trovoada'
+              : 'Chuva';
+  return a.agora ? '$tipo agora' : '$tipo às ${hora(a.inicio)}';
 }
 
 /// Alerta em uma linha: descrição sem o prefixo "Aviso:", até quando vale e quantos

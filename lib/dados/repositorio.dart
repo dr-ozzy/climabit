@@ -110,6 +110,10 @@ class Repositorio extends ChangeNotifier {
   /// telas usam só [chuvaHoraria] (próximas 25 horas).
   List<HoraChuva> horasSemana = [];
 
+  /// Chuva de 15 em 15 minutos nas próximas 2 horas (Open-Meteo), para o widget dizer
+  /// "Chuva às 18:15" quando a chuva estiver perto.
+  List<Faixa15> faixas15 = [];
+
   /// A previsão por hora é oficial (Canadá) e não estimativa de modelo.
   bool horasOficiais = false;
   bool previsaoEstimada = false;
@@ -301,6 +305,7 @@ class Repositorio extends ChangeNotifier {
     final todasHoras = _ler('Open-Meteo (por hora)', resultados[11], lerChuvaHoraria) ?? [];
     final corte = DateTime.now().subtract(const Duration(minutes: 59));
     horasSemana = todasHoras.where((h) => h.hora.isAfter(corte)).toList();
+    faixas15 = _ler('Open-Meteo (por hora)', resultados[11], lerChuva15min) ?? [];
     chuvaHoraria = horasSemana.take(25).toList();
     horasPassadas = todasHoras.where((h) => !h.hora.isAfter(corte)).toList();
 
@@ -641,5 +646,7 @@ Uri _enderecoChuvaHoraria(double lat, double lon) =>
       // 7 dias à frente (rotinas de atividades); as telas usam as primeiras 25 horas.
       'forecast_hours': '169',
       'past_hours': '25',
+      'minutely_15': 'precipitation,snowfall,weather_code',
+      'forecast_minutely_15': '8',
       'timezone': 'GMT',
     });
