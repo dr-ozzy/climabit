@@ -31,16 +31,16 @@ String fraseResumo(EstadoCeu? ceu, bool noite, List<HoraChuva> horas, DateTime a
   if (chovendo) {
     final para = proximas.skip(1).where((h) => !_chuvosa(h)).firstOrNull;
     frase = para == null
-        ? '${nomeCeu(ceu!, noite)} agora; a chuva deve continuar nas próximas horas.'
-        : '${nomeCeu(ceu!, noite)} agora; deve melhorar por volta das ${para.hora.hour}h.';
+        ? '${nomeCeu(ceu!, noite)} agora; continua nas próximas horas.'
+        : '${nomeCeu(ceu!, noite)} agora; para por volta das ${para.hora.hour}h.';
   } else {
     final chuva = proximas.where(_chuvosa).firstOrNull;
     final ceuTexto = ceu == null ? 'Sem chuva' : nomeCeu(ceu, noite);
     if (chuva == null) {
-      frase = '$ceuTexto, sem chuva prevista nas próximas 12 horas.';
+      frase = '$ceuTexto; sem chuva nas próximas 12 horas.';
     } else if (!chuva.hora.isAfter(agora.add(const Duration(minutes: 30)))) {
       final tipo = _tipoChuva(chuva.codigo);
-      frase = '${tipo[0].toUpperCase()}${tipo.substring(1)} possível a qualquer momento '
+      frase = '${tipo[0].toUpperCase()}${tipo.substring(1)} a qualquer momento '
           '(${chuva.probabilidade} %).';
     } else {
       final antes = chuva.hora.subtract(const Duration(hours: 1));
@@ -53,7 +53,7 @@ String fraseResumo(EstadoCeu? ceu, bool noite, List<HoraChuva> horas, DateTime a
   if (quentes.isNotEmpty) {
     final pico = quentes.reduce((a, b) => b.temperatura! > a.temperatura! ? b : a);
     if (pico.temperatura! >= 35) {
-      return '$frase Calor forte: até ${inteiro(pico.temperatura)}° às ${pico.hora.hour}h.';
+      return '$frase Calor forte: ${inteiro(pico.temperatura)}° às ${pico.hora.hour}h.';
     }
   }
   return frase;
@@ -63,7 +63,7 @@ String fraseResumo(EstadoCeu? ceu, bool noite, List<HoraChuva> horas, DateTime a
 String? chanceProximaHora(List<HoraChuva> horas, DateTime agora) {
   final h = horas.where((h) => h.hora.isAfter(agora)).firstOrNull;
   if (h?.probabilidade == null) return null;
-  return 'Chance de chuva na próxima hora: ${h!.probabilidade} %';
+  return 'Chuva na próxima hora: ${h!.probabilidade} %';
 }
 
 /// Comparação com a mesma hora de ontem, pelo mesmo modelo (Open-Meteo):
@@ -85,9 +85,9 @@ String? comparacaoOntem(List<HoraChuva> horas, List<HoraChuva> passadas, DateTim
   final ontem = perto(passadas, agora.subtract(const Duration(hours: 24)));
   if (hoje == null || ontem == null) return null;
   final dif = hoje.temperatura! - ontem.temperatura!;
-  if (dif.abs() < 1.5) return 'Temperatura parecida com a de ontem a esta hora.';
+  if (dif.abs() < 1.5) return 'Mesma temperatura de ontem neste horário.';
   final graus = dif.abs().round();
-  return '$graus° ${dif > 0 ? 'mais quente' : 'mais frio'} que ontem a esta hora.';
+  return '$graus° ${dif > 0 ? 'mais quente' : 'mais frio'} que ontem neste horário.';
 }
 
 /// Cartão do topo da tela Agora: frase do dia, chance na próxima hora e comparação com
@@ -118,7 +118,7 @@ String? riscoTrovoada(List<HoraChuva> horas, DateTime agora) {
   final ini = proximas[i0].hora.hour;
   final fim = proximas[i1].hora.add(const Duration(hours: 1)).hour;
   final nome = maior == 2 ? 'alto' : 'moderado';
-  return 'Risco de trovoada: $nome entre ${ini}h e ${fim}h (estimativa).';
+  return 'Risco de trovoada $nome das ${ini}h às ${fim}h.';
 }
 
 const _diasSemana = [
@@ -151,7 +151,8 @@ String? avisoProximosDias(List<DiaPrevisao> dias, DateTime agora, {bool canada =
     }
     if (oQue == null) continue;
     final nome = diff == 1 ? 'Amanhã' : _diasSemana[dia.weekday - 1];
-    return '$nome: $oQue.';
+    final data = '${dia.day.toString().padLeft(2, '0')}/${dia.month.toString().padLeft(2, '0')}';
+    return '$nome ($data): $oQue.';
   }
   return null;
 }
@@ -167,7 +168,11 @@ class CartaoResumo extends StatelessWidget {
     this.oficial = false,
     this.dias = const [],
     this.canada = false,
+    this.hoje,
   });
+
+  /// Previsão oficial de hoje (INMET ou ECCC): dá o ícone do título e a linha "Hoje".
+  final DiaPrevisao? hoje;
 
   /// Previsão por dia (para o aviso dos próximos dias).
   final List<DiaPrevisao> dias;
@@ -189,11 +194,21 @@ class CartaoResumo extends StatelessWidget {
     final ontem = comparacaoOntem(horas, passadas, agora);
     final marcante = avisoProximosDias(dias, agora, canada: canada);
     final trovoada = riscoTrovoada(horas, agora);
+    final resumoHoje = hoje?.resumo ?? '';
     return Cartao(
       titulo: 'Resumo',
       icone: Icons.short_text,
+      desenho: resumoHoje.isEmpty ? null : simboloTempo(resumoHoje, size: 20),
       children: [
         Text(fraseResumo(ceu, noite, horas, agora), style: tema.textTheme.titleMedium),
+        if (resumoHoje.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(children: [
+            Icon(Icons.today, size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text('Hoje: $resumoHoje')),
+          ]),
+        ],
         if (proxima != null) ...[
           const SizedBox(height: 6),
           Row(children: [
@@ -227,9 +242,13 @@ class CartaoResumo extends StatelessWidget {
           ]),
         ],
         const SizedBox(height: 6),
-        Fonte(oficial
-            ? 'previsão por hora do Environment and Climate Change Canada'
-            : 'céu de agora: medição; próximas horas e ontem: Open-Meteo (modelo, estimativa)'),
+        Fonte([
+          if (resumoHoje.isNotEmpty) 'hoje: previsão ${hoje!.fonte}',
+          oficial
+              ? 'próximas horas: Environment and Climate Change Canada'
+              : 'céu de agora: medição; próximas horas, trovoada e ontem: Open-Meteo '
+                  '(modelo, estimativa)',
+        ].join('; ')),
       ],
     );
   }

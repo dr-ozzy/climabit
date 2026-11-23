@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../dados/erros.dart';
 import '../dados/astro.dart';
-import '../dados/chuva_prevista.dart';
 import '../dados/cidade.dart';
 import '../dados/fontes.dart';
 import '../dados/lua.dart';
@@ -79,7 +78,7 @@ class TelaAgora extends StatelessWidget {
             estimativa: repo.estimativaAtual != null,
           );
 
-    // Ordem pedida pelo usuário: Vai chover hoje?, hora em hora, Detalhes, Sol e lua, Mar.
+    // Ordem: Resumo (com a previsão oficial de hoje), hora em hora, Detalhes, Sol e lua, Mar.
     final cartoes = <Widget>[
       // Frase do dia, chuva na próxima hora e comparação com ontem (ideias de outros apps).
       if (repo.chuvaHoraria.isNotEmpty)
@@ -92,8 +91,8 @@ class TelaAgora extends StatelessWidget {
           oficial: repo.horasOficiais,
           dias: repo.previsao,
           canada: repo.cidade.noCanada,
+          hoje: hoje,
         ),
-      if (repo.previsao.isNotEmpty) _CartaoChuva(repo: repo, agora: agora, hoje: hoje),
       if (repo.chuvaHoraria.isNotEmpty)
         _CartaoProximasHoras(horas: repo.chuvaHoraria, oficial: repo.horasOficiais),
       if (repo.chuvaHoraria.isNotEmpty)
@@ -266,7 +265,7 @@ class _CartaoMedicao extends StatelessWidget {
         GradeDados(
           children: [
             // Caixa Chuva só quando a estação mediu chuva (> 0 mm). Com 0,0 mm ela repetia
-            // o que "Vai chover hoje?" já diz. Estação sem medidor (aeroporto, Canadá): nunca.
+            // o que o Resumo já diz. Estação sem medidor (aeroporto, Canadá): nunca.
             if ((m.chuva1h ?? 0) > 0 || (m.chuva1h == null && (m.chuvaHoje ?? 0) > 0))
               if (m.chuva1h == null)
                 Dado(
@@ -817,45 +816,6 @@ class _ColunaHora extends StatelessWidget {
   }
 }
 
-
-/// Quadro "Vai chover hoje?": período da chuva na previsão oficial e resumo do dia.
-/// (A chuva medida agora fica na caixa "Chuva" do quadro Agora e na aba Chuva.)
-class _CartaoChuva extends StatelessWidget {
-  const _CartaoChuva({required this.repo, required this.agora, this.hoje});
-
-  final Repositorio repo;
-  final DateTime agora;
-  final DiaPrevisao? hoje;
-
-  @override
-  Widget build(BuildContext context) {
-    return Cartao(
-      titulo: 'Vai chover hoje?',
-      desenho: const NuvemChuva(),
-      children: _hoje(context),
-    );
-  }
-
-  List<Widget> _hoje(BuildContext context) {
-    final tema = Theme.of(context);
-    final proxima = proximaChuva(repo.previsao, agora);
-    return [
-      Text(fraseChuva(proxima, agora, diasConsultados: repo.previsao.length),
-          style: tema.textTheme.titleLarge),
-      if (hoje != null) ...[
-        const SizedBox(height: 10),
-        Row(children: [
-          simboloTempo(hoje!.resumo, size: 32, color: tema.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(child: Text(hoje!.resumo, style: tema.textTheme.titleMedium)),
-        ]),
-      ],
-      const SizedBox(height: 6),
-      Fonte('previsão ${proxima?.fonte ?? repo.previsao.first.fonte}'
-          ' (manhã: 6h às 12h, tarde: 12h às 18h, noite: 18h às 24h)'),
-    ];
-  }
-}
 
 Dado _avaliado(IconData icone, String rotulo, String valor, (String, Color)? avaliacao,
         {Widget? lateral}) =>
