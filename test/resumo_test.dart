@@ -43,9 +43,14 @@ void main() {
     expect(avisoProximosDias([d(23, 'Pancadas de chuva e trovoadas isoladas')], agora), isNull);
     expect(avisoProximosDias([d(23, 'Sol'), d(26, 'Chuva forte')], agora),
         'Quinta-feira (26/11): chuva forte prevista.');
-    expect(avisoProximosDias([d(23, 'Sol', max: 36)], agora), 'Amanhã (23/11): calor forte (máx. 36°).');
-    expect(avisoProximosDias([d(24, 'Sol', min: 8)], agora), 'Terça-feira (24/11): frio (mín. 8°).');
-    expect(avisoProximosDias([d(24, 'Sun', min: 8)], agora, canada: true), isNull);
+    expect(avisoProximosDias([d(23, 'Sol', max: 36)], agora), isNull);
+    expect(diaDestaque([d(22, 'Sol', max: 40), d(23, 'Sol', max: 30), d(25, 'Sol', max: 37),
+          d(26, 'Sol', max: 37)], agora)?.$1,
+        'Dia mais quente: Quarta-feira (25/11), máx. 37°.');
+    expect(diaDestaque([d(23, 'Sol', max: 31)], agora)?.$1, 'Dia mais quente: Amanhã (23/11), máx. 31°.');
+    expect(diaDestaque([d(23, 'Sol')], agora), isNull);
+    expect(diaDestaque([d(23, 'Neve', max: -2, min: -8), d(28, 'Neve', max: -5, min: -15)], agora),
+        ('Dia mais frio: Sábado (28/11), mín. -15°.', true));
   });
 
   test('risco de trovoada pela energia para tempestades', () {

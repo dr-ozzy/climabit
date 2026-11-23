@@ -126,8 +126,8 @@ const _diasSemana = [
   'Domingo'
 ];
 
-/// Aviso de tempo marcante nos próximos 6 dias (a partir de amanhã), ao estilo
-/// "Quinta-feira: chuva forte prevista." Nulo quando nenhum dia se destaca.
+/// Aviso de tempestade ou chuva forte nos próximos 6 dias (a partir de amanhã), ao estilo
+/// "Quinta-feira (26/11): chuva forte prevista." Nulo quando nenhum dia tem isso.
 /// "Trovoadas isoladas" sozinhas não contam (o INMET escreve isso quase todo dia no verão).
 String? avisoProximosDias(List<DiaPrevisao> dias, DateTime agora, {bool canada = false}) {
   final hoje = DateTime(agora.year, agora.month, agora.day);
@@ -142,19 +142,49 @@ String? avisoProximosDias(List<DiaPrevisao> dias, DateTime agora, {bool canada =
     } else if (texto.contains('chuva forte') || texto.contains('chuvas fortes') ||
         texto.contains('heavy rain') || texto.contains('pluie forte')) {
       oQue = 'chuva forte prevista';
-    } else if ((d.maxima ?? 0) >= 35) {
-      oQue = 'calor forte (máx. ${d.maxima}°)';
-    } else if (d.minima != null && d.minima! <= (canada ? -15 : 10)) {
-      oQue = 'frio (mín. ${d.minima}°)';
     } else {
       oQue = null;
     }
     if (oQue == null) continue;
-    final nome = diff == 1 ? 'Amanhã' : _diasSemana[dia.weekday - 1];
-    final data = '${dia.day.toString().padLeft(2, '0')}/${dia.month.toString().padLeft(2, '0')}';
-    return '$nome ($data): $oQue.';
+    return '${_nomeDia(dia, diff)}: $oQue.';
   }
   return null;
+}
+
+/// "Amanhã (23/11)" ou "Quarta-feira (25/11)".
+String _nomeDia(DateTime d, int diff) {
+  final dia = DateTime(d.year, d.month, d.day);
+  final nome = diff == 1 ? 'Amanhã' : _diasSemana[dia.weekday - 1];
+  return '$nome (${dia.day.toString().padLeft(2, '0')}/${dia.month.toString().padLeft(2, '0')})';
+}
+
+/// Média das máximas abaixo da qual a semana conta como fria (mostra o dia mais frio).
+const _semanaFria = 15;
+
+/// Dia de destaque entre amanhã e os próximos 6 dias. Semana quente ou amena: o dia mais
+/// quente ("Dia mais quente: Quarta-feira (25/11), máx. 37°."). Semana fria (média das
+/// máximas abaixo de 15°, ex.: inverno no Canadá): o dia mais frio, pela mínima
+/// ("Dia mais frio: Sábado (28/11), mín. -12°."). Nulo sem dados.
+(String, bool)? diaDestaque(List<DiaPrevisao> dias, DateTime agora) {
+  final hoje = DateTime(agora.year, agora.month, agora.day);
+  final semana = [
+    for (final d in dias)
+      if (DateTime(d.dia.year, d.dia.month, d.dia.day).difference(hoje).inDays case final n
+          when n >= 1 && n <= 6)
+        (d, n),
+  ];
+  final comMax = semana.where((x) => x.$1.maxima != null).toList();
+  if (comMax.isEmpty) return null;
+  final media = comMax.fold<int>(0, (s, x) => s + x.$1.maxima!) / comMax.length;
+  if (media < _semanaFria) {
+    final comMin = semana.where((x) => x.$1.minima != null).toList();
+    if (comMin.isNotEmpty) {
+      final f = comMin.reduce((a, b) => b.$1.minima! < a.$1.minima! ? b : a);
+      return ('Dia mais frio: ${_nomeDia(f.$1.dia, f.$2)}, mín. ${f.$1.minima}°.', true);
+    }
+  }
+  final q = comMax.reduce((a, b) => b.$1.maxima! > a.$1.maxima! ? b : a);
+  return ('Dia mais quente: ${_nomeDia(q.$1.dia, q.$2)}, máx. ${q.$1.maxima}°.', false);
 }
 
 class CartaoResumo extends StatelessWidget {
@@ -194,6 +224,7 @@ class CartaoResumo extends StatelessWidget {
     final ontem = comparacaoOntem(horas, passadas, agora);
     final marcante = avisoProximosDias(dias, agora, canada: canada);
     final trovoada = riscoTrovoada(horas, agora);
+    final destaque = diaDestaque(dias, agora);
     final resumoHoje = hoje?.resumo ?? '';
     return Cartao(
       titulo: 'Resumo',
@@ -239,6 +270,15 @@ class CartaoResumo extends StatelessWidget {
             Icon(Icons.event_note, size: 18, color: tema.colorScheme.primary),
             const SizedBox(width: 6),
             Expanded(child: Text(marcante, style: const TextStyle(fontWeight: FontWeight.w600))),
+          ]),
+        ],
+        if (destaque != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            Icon(destaque.$2 ? Icons.ac_unit : Icons.thermostat,
+                size: 18, color: tema.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(destaque.$1)),
           ]),
         ],
         const SizedBox(height: 6),
